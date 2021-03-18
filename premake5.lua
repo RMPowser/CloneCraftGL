@@ -1,4 +1,4 @@
-workspace("CloneCraft")
+workspace("CloneCraftGL")
 	configurations({"Debug",  "Release"})
 	platforms({"Win64", "Linux64"})
 	architecture("x64")

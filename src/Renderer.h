@@ -12,7 +12,7 @@
 #include <iostream>
 #include <fstream>
 
-#define numVAOs 1
+#define numVAOs 2
 #define numVBOs 4
 
 namespace CC {
@@ -23,7 +23,8 @@ namespace CC {
 
 		Mat4 mvMat, invTrns_mvMat;
 		Model model;
-		Light light;
+		Model lightModel;
+		PositionalLight light;
 		Vec4 globalAmbient;
 
 		GLuint renderingProgram;
@@ -43,7 +44,7 @@ namespace CC {
 		void PrintProgramLog(int prog);
 		bool CheckOpenGLError();
 		void SetupVertices();
-		void SetupLightData(Mat4 vMatrix);
+		void SetupLightData(Mat4& vMatrix, PositionalLight& light, Model& model);
 		GLuint LoadTexture(const char* textureImagePath);
 		Model LoadModel(const char* modelFilePath);
 

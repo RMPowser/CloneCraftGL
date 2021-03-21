@@ -15,7 +15,7 @@ namespace CC {
 	}
 
 	Vec4 Camera::GetForwardAxis() {
-		Vec4 r { 0, 0, 1, 0 }; // -z axis is forward
+		Vec4 r { 0, 0, 1, 1 }; // -z axis is forward
 		Mat4 rotateY = MakeRotateYMatrix(-rotation[1] * RADIAN);
 
 		r = rotateY * r;
@@ -24,7 +24,7 @@ namespace CC {
 	
 	Vec4 Camera::GetRightAxis() {
 		Vec4 r = GetForwardAxis();
-		r = Cross(r, Vec4(0, -1, 0, 0));
+		r = Cross(r, Vec4(0, -1, 0, 1));
 		return r;
 	}
 

@@ -18,10 +18,10 @@ int main() {
 	std::string glVersionInfo = "OpenGL Driver Version " + glVersion + "\n";
 	printf(glVersionInfo.c_str());
 
+	double dt = 0;
+
 	while (!renderer.GetWindow().ShouldClose()) {
-		double dt = GetDeltaTime();
-		std::string windowNameAndFPS = "CloneCraftGL FPS: " + std::to_string(1.0 / dt);
-		renderer.GetWindow().SetWindowName(windowNameAndFPS.c_str());
+		dt = GetDeltaTime();
 		renderer.Update(dt);
 		renderer.Draw(dt);
 	}

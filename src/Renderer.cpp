@@ -177,7 +177,9 @@ namespace CC {
 	Renderer::Renderer() {
 		renderingProgram = CreateShaderProgram(vShaderPath, fShaderPath);
 		cam.Position() = { 0, 2, 4, 0 };
-		model.mMat.Position() = { 0.0f, 0.0f, 0.0f, 0.0f };
+		SetupVertices();
+		model.mMat.Position() = { 0.0f, 0.0f, 0.0f, 1.0f };
+
 
 		textureAtlas = LoadTexture(textureAtlasPath);
 
@@ -187,9 +189,9 @@ namespace CC {
 		light.ambient = { 0.0, 0.0, 0.0, 1.0 };
 		light.diffuse = { 1.0, 1.0, 1.0, 1.0 };
 		light.specular = { 1.0, 1.0, 1.0, 1.0 };
-		light.position = { 5.0, 2.0, 2.0 };
+		light.position = { 2.0, 2.0, 2.0 };
+		lightModel.mMat.Position() = Vec4(light.position, 1);
 
-		SetupVertices();
 
 		using namespace GW;
 		using namespace GW::CORE;
@@ -208,16 +210,26 @@ namespace CC {
 		}
 
 		float speed = 5.0f;
-		float mouseSensitivity = 0.05f;
+		float mouseSensitivity = 0.15f;
 
 		// --- horizontal movement --- //
-		Vec4 moveDirection = cam.GetRightAxis() * window.GetInputAxisSide() + cam.GetForwardAxis() * window.GetInputAxisFwd();
-		moveDirection = Normalize(moveDirection);
+		Vec4 moveDirection = Normalize(cam.GetRightAxis() * window.GetInputPlayerAxisSide() + cam.GetForwardAxis() * window.GetInputPlayerAxisFwd());
 		cam.Position() += moveDirection * speed * dt;
+		moveDirection = Normalize(cam.GetRightAxis() * window.GetInputLightAxisSide() + cam.GetForwardAxis() * window.GetInputLightAxisFwd());
+		light.position += moveDirection * speed * dt;
 
 		// --- vertical movement --- //
-		float verticalMoveDirection = window.GetInputAxisUp();
-		cam.Position()[1] += verticalMoveDirection * speed * dt;
+		cam.Position()[1] += window.GetInputPlayerAxisUp() * speed * dt;
+		light.position[1] += window.GetInputLightAxisUp() * speed * dt;
+
+
+		lightModel.mMat.Position() = Vec4(light.position, 1);
+
+		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+		COORD position = { 0, 1 };
+
+		SetConsoleCursorPosition(hStdout, position);
+		printf("light position: %.2f.%.2f.%.2f\n", light.position[0], light.position[1], light.position[2]);
 
 		// --- mouse look --- //
 		Vec2 mouseDelta = window.GetMouseDelta();
@@ -240,7 +252,6 @@ namespace CC {
 	}
 
 	void Renderer::Draw(double dt) {
-		glClearColor((70.0f / 255), (160.0f / 255), (255.0f / 255), (255.0f / 255));
 		glClear(GL_DEPTH_BUFFER_BIT);
 		glClear(GL_COLOR_BUFFER_BIT);
 
@@ -250,6 +261,13 @@ namespace CC {
 			resized = false;
 			CreatePMat();
 		}
+
+		
+
+
+		glBindVertexArray(vao[0]);
+
+		SetupLightData(cam.VMat(), light, model);
 
 		mvMat = cam.VMat() * model.mMat;
 		invTrns_mvMat = Transpose(Inverse(mvMat));
@@ -262,24 +280,56 @@ namespace CC {
 		glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.PMat().data());
 		glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, invTrns_mvMat.data());
 
-		SetupLightData(cam.VMat());
+		// verts
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+		// normals
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+		// texture coodinates
+		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		//glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, textureAtlas);
+
+		// indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), model.indices.data(), GL_STATIC_DRAW);
+
+		glEnable(GL_CULL_FACE);
+		glFrontFace(GL_CCW);
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
+
+		glDrawElements(GL_TRIANGLES, model.indices.size(), GL_UNSIGNED_INT, 0);
+
+
+
+		glBindVertexArray(vao[1]);
+
+		SetupLightData(cam.VMat(), light, lightModel);
+
+		mvMat = cam.VMat() * lightModel.mMat;
+		invTrns_mvMat = Transpose(Inverse(mvMat));
+
+		mvMatLoc = glGetUniformLocation(renderingProgram, "mvMat");
+		pMatLoc = glGetUniformLocation(renderingProgram, "pMat");
+		nMatLoc = glGetUniformLocation(renderingProgram, "nMat");
+
+		glUniformMatrix4fv(mvMatLoc, 1, GL_FALSE, mvMat.data());
+		glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.PMat().data());
+		glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, invTrns_mvMat.data());
 
 		// verts
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-		glEnableVertexAttribArray(0);
-
-		CheckOpenGLError();
-
+		glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
 		// normals
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-		glEnableVertexAttribArray(1);
-
-		CheckOpenGLError();
-
+		glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
 		// texture coodinates
 		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		//glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
 		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
 		//glEnableVertexAttribArray(2);
 
@@ -288,20 +338,14 @@ namespace CC {
 
 		// indices
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightModel.indices.size() * sizeof(unsigned int), lightModel.indices.data(), GL_STATIC_DRAW);
 
-		CheckOpenGLError();
-
-		//glEnable(GL_CULL_FACE);
+		glEnable(GL_CULL_FACE);
 		glFrontFace(GL_CCW);
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LEQUAL);
 
-		glDrawElements(GL_TRIANGLES, model.indices.size(), GL_UNSIGNED_INT, 0);
-		CheckOpenGLError();
-
-		if (CheckOpenGLError()) {
-			PrintProgramLog(renderingProgram);
-		}
+		glDrawElements(GL_TRIANGLES, lightModel.indices.size(), GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window.window);
 	}
@@ -377,33 +421,61 @@ namespace CC {
 		model = LoadModel(modelPath);
 		model.material = Materials::gold;
 
+		lightModel = model;
+		lightModel.material = Materials::silver;
+
+		for (size_t i = 0; i < lightModel.vertices.size(); i++) {
+			lightModel.vertices[i].position[0] /= 2;
+			lightModel.vertices[i].position[1] /= 2;
+			lightModel.vertices[i].position[2] /= 2;
+		}
 
 
 		glGenVertexArrays(numVAOs, vao);
-		glBindVertexArray(vao[0]);
-
+		
 		glGenBuffers(numVBOs, vbo);
 
-		// vertices
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
 
+
+		glBindVertexArray(vao[0]);
+		// verts
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+		glEnableVertexAttribArray(0);
 		// normals
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+		glEnableVertexAttribArray(1);
+		// texture coodinates
+		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
+		//glEnableVertexAttribArray(2);
 
-		// texture coordinates
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, textureAtlas);
 
-		// indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), model.indices.data(), GL_STATIC_DRAW);
+
+		glBindVertexArray(vao[1]);
+		// verts
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+		glEnableVertexAttribArray(0);
+		// normals
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+		glEnableVertexAttribArray(1);
+		// texture coodinates
+		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
+		//glEnableVertexAttribArray(2);
+
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, textureAtlas);
 
 		CheckOpenGLError();
 	}
 
-	void Renderer::SetupLightData(Mat4 vMatrix) {
+	void Renderer::SetupLightData(Mat4& vMatrix, PositionalLight& light, Model& model) {
 		// convert lights position to view space
 		Vec3 lightPosViewSpace(vMatrix * Vec4(light.position, 1.0));
 

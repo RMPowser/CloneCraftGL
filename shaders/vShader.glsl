@@ -40,7 +40,7 @@ mat4 BuildScaleMatrix(float x, float y, float z) {
 	return scale;
 }
 
-struct Light {
+struct PositionalLight {
 	vec4 ambient;
 	vec4 diffuse;
 	vec4 specular;
@@ -55,7 +55,7 @@ struct Material {
 };
 
 uniform vec4 globalAmbient;
-uniform Light light;
+uniform PositionalLight light;
 uniform Material material;
 uniform mat4 mvMat;
 uniform mat4 pMat;
@@ -64,7 +64,7 @@ uniform mat4 nMat; // for transforming normals
 layout (location=0) in vec3 vPos;
 layout (location=1) in vec3 vNorm;
 out vec3 varyingVertPos; // vertex position in eye space
-out vec3 varyingNormal; // eye-space vertex normal
+flat out vec3 varyingNormal; // eye-space vertex normal
 out vec3 varyingLightDir; // vector pointing to the light
 out vec3 varyingHalfVector;
 

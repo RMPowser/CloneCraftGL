@@ -4,7 +4,7 @@
 #include "Vector.h"
 
 namespace CC {
-	struct Light {
+	struct PositionalLight {
 		Vec4 ambient;
 		Vec4 diffuse;
 		Vec4 specular;

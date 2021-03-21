@@ -1,6 +1,6 @@
 #version 430 core
 
-struct Light {
+struct PositionalLight {
 	vec4 ambient;
 	vec4 diffuse;
 	vec4 specular;
@@ -15,14 +15,14 @@ struct Material {
 };
 
 uniform vec4 globalAmbient;
-uniform Light light;
+uniform PositionalLight light;
 uniform Material material;
 uniform mat4 mvMat;
 uniform mat4 pMat;
 uniform mat4 nMat; // for transforming normals
 
 in vec3 varyingVertPos;
-in vec3 varyingNormal;
+flat in vec3 varyingNormal;
 in vec3 varyingLightDir;
 in vec3 varyingHalfVector;
 out vec4 fragColor;

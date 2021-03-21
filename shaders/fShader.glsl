@@ -25,9 +25,10 @@ in vec3 varyingVertPos;
 flat in vec3 varyingNormal;
 in vec3 varyingLightDir;
 in vec3 varyingHalfVector;
+in vec2 texCoord;
 out vec4 fragColor;
 
-//layout (binding=0) uniform sampler2D samp;
+layout (binding=0) uniform sampler2D samp;
 
 void main() {
 	vec3 V = normalize(-varyingVertPos);
@@ -45,5 +46,6 @@ void main() {
 	vec3 diffuse = light.diffuse.xyz * material.diffuse.xyz * max(cosTheta, 0.0);
 	vec3 specular = light.specular.xyz * material.specular.xyz * pow(max(cosPhi, 0.0), material.shininess * 3.0);
 
+	diffuse = (diffuse * 0.5) + (texture(samp, texCoord).xyz * 0.5);
 	fragColor = vec4((ambient + diffuse + specular), 1.0);
 }

@@ -12,11 +12,15 @@ double GetDeltaTime() {
 }
 
 int main() {
-	CC::Renderer renderer;
-
 	std::string glVersion = (const char*)glGetString(GL_VERSION);
 	std::string glVersionInfo = "OpenGL Driver Version " + glVersion + "\n";
 	printf(glVersionInfo.c_str());
+
+	//CC::Window window;
+	CC::Renderer renderer;
+	//CC::Player player;
+	//CC::Camera camera;
+	//CC::World world;
 
 	double dt = 0;
 

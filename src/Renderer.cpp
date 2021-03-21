@@ -225,12 +225,6 @@ namespace CC {
 
 		lightModel.mMat.Position() = Vec4(light.position, 1);
 
-		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-		COORD position = { 0, 1 };
-
-		SetConsoleCursorPosition(hStdout, position);
-		printf("light position: %.2f.%.2f.%.2f\n", light.position[0], light.position[1], light.position[2]);
-
 		// --- mouse look --- //
 		Vec2 mouseDelta = window.GetMouseDelta();
 		cam.Rotation()[0] += mouseDelta[1] * mouseSensitivity;
@@ -287,11 +281,11 @@ namespace CC {
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
 		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
 		// texture coodinates
-		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		//glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
 
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, textureAtlas);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, textureAtlas);
 
 		// indices
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
@@ -328,13 +322,12 @@ namespace CC {
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
 		glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
 		// texture coodinates
-		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		//glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
-		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
-		//glEnableVertexAttribArray(2);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(2);
 
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, textureAtlas);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, textureAtlas);
 
 		// indices
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
@@ -447,12 +440,12 @@ namespace CC {
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 		glEnableVertexAttribArray(1);
 		// texture coodinates
-		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
-		//glEnableVertexAttribArray(2);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
+		glEnableVertexAttribArray(2);
 
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, textureAtlas);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, textureAtlas);
 
 
 		glBindVertexArray(vao[1]);
@@ -465,12 +458,12 @@ namespace CC {
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 		glEnableVertexAttribArray(1);
 		// texture coodinates
-		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
-		//glEnableVertexAttribArray(2);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
+		glEnableVertexAttribArray(2);
 
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, textureAtlas);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, textureAtlas);
 
 		CheckOpenGLError();
 	}

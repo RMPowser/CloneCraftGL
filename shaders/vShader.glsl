@@ -63,12 +63,14 @@ uniform mat4 nMat; // for transforming normals
 
 layout (location=0) in vec3 vPos;
 layout (location=1) in vec3 vNorm;
+layout (location=2) in vec2 tCoord;
 out vec3 varyingVertPos; // vertex position in eye space
 flat out vec3 varyingNormal; // eye-space vertex normal
 out vec3 varyingLightDir; // vector pointing to the light
 out vec3 varyingHalfVector;
+out vec2 texCoord;
 
-//layout (binding=0) uniform sampler2D samp; // not used here in vShader
+layout (binding=0) uniform sampler2D samp;
 
 void main() {
 	varyingVertPos = (mvMat * vec4(vPos, 1.0)).xyz;
@@ -76,4 +78,5 @@ void main() {
 	varyingLightDir = light.position - varyingVertPos;
 	varyingHalfVector = (varyingLightDir + (-varyingVertPos)).xyz;
 	gl_Position = pMat * mvMat * vec4(vPos, 1.0);
+	texCoord = tCoord;
 }

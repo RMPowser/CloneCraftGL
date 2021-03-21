@@ -27,6 +27,31 @@ namespace CC {
 		bool operator!=(const Vec2& other) const;
 	};
 
+	class Vec4;
+
+	class Vec3 {
+	private:
+		glm::vec3 glmVec;
+
+	public:
+		Vec3();
+		Vec3(float x, float y, float z);
+		Vec3(const Vec4& xyzw);
+		Vec3(const Vec3& other);
+
+		float& operator[](unsigned int i);
+		float const& operator[](unsigned int i) const;
+		Vec3& operator=(const Vec3& other);
+		Vec3& operator+=(const Vec3& other);
+		Vec3& operator-=(const Vec3& other);
+		Vec3& operator*=(const float& f);
+		Vec3 operator+(const Vec3& other) const;
+		Vec3 operator-(const Vec3& other) const;
+		Vec3 operator*(const float f) const;
+		bool operator==(const Vec3& other) const;
+		bool operator!=(const Vec3& other) const;
+	};
+
 	class Vec4 {
 		friend class Mat4;
 	private:
@@ -35,6 +60,7 @@ namespace CC {
 	public:
 		Vec4();
 		Vec4(float x, float y, float z, float w);
+		Vec4(const Vec3& xyz, float w);
 		Vec4(const Vec4& other);
 		
 		float& operator[](unsigned int i);

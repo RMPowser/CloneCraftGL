@@ -64,12 +64,83 @@ namespace CC {
 	}
 
 
+	Vec3::Vec3()
+		: glmVec(0.0f) {
+	}
+
+	Vec3::Vec3(float x, float y, float z)
+		: glmVec(x, y, z) {
+	}
+
+	Vec3::Vec3(const Vec4& xyzw) 
+		: glmVec(xyzw[0], xyzw[1], xyzw[2]){
+	}
+
+	Vec3::Vec3(const Vec3& other) {
+		operator=(other);
+	}
+
+	float& Vec3::operator[](unsigned int i) {
+		assert(i < 3);
+		return glmVec[i];
+	}
+
+	float const& Vec3::operator[](unsigned int i) const {
+		assert(i < 3);
+		return glmVec[i];
+	}
+
+	Vec3& Vec3::operator=(const Vec3& other) {
+		glmVec = other.glmVec;
+		return *this;
+	}
+
+	Vec3& Vec3::operator+=(const Vec3& other) {
+		glmVec += other.glmVec;
+		return *this;
+	}
+
+	Vec3& Vec3::operator-=(const Vec3& other) {
+		glmVec -= other.glmVec;
+		return *this;
+	}
+
+	Vec3& Vec3::operator*=(const float& f) {
+		glmVec *= f;
+		return *this;
+	}
+
+	Vec3 Vec3::operator+(const Vec3& other) const {
+		return Vec3(*this) += other;
+	}
+
+	Vec3 Vec3::operator-(const Vec3& other) const {
+		return Vec3(*this) -= other;
+	}
+
+	Vec3 Vec3::operator*(const float f) const {
+		return Vec3(*this) *= f;
+	}
+
+	bool Vec3::operator==(const Vec3& other) const {
+		return glmVec == other.glmVec;
+	}
+
+	bool Vec3::operator!=(const Vec3& other) const {
+		return !(*this == other);
+	}
+
+
 	Vec4::Vec4() 
 		: glmVec(0.0f) {
 	}
 
 	Vec4::Vec4(float x, float y, float z, float w)
 		: glmVec(x, y, z, w) {
+	}
+
+	Vec4::Vec4(const Vec3& xyz, float w)
+		: glmVec(xyz[0], xyz[1], xyz[2], w){
 	}
 
 	Vec4::Vec4(const Vec4& other) {

@@ -5,13 +5,15 @@
 #include "Gateware.hpp"
 #include "Camera.h"
 #include "Window.h"
+#include "Model.h"
+#include "Light.h"
 
 #include <string>
 #include <iostream>
 #include <fstream>
 
 #define numVAOs 1
-#define numVBOs 2
+#define numVBOs 4
 
 namespace CC {
 	class Renderer {
@@ -19,17 +21,18 @@ namespace CC {
 		Window window;
 		Camera cam;
 
-		Mat4 cubeMMat;
-		Mat4 mvMat;
-		Vec4 cubeP;
+		Mat4 mvMat, invTrns_mvMat;
+		Model model;
+		Light light;
+		Vec4 globalAmbient;
 
 		GLuint renderingProgram;
 		GLuint vao[numVAOs];
 		GLuint vbo[numVBOs];
 		GLuint textureAtlas;
 
-		GLuint mvMatLocation, pMatLocation;
-		float aspect;
+		// locations for shader uniform variables
+		GLuint L_GlobalAmbLoc, L_AmbLoc, L_DiffLoc, L_SpecLoc, L_PosLoc, M_AmbLoc, M_DiffLoc, M_SpecLoc, M_ShiLoc, mvMatLoc, pMatLoc, nMatLoc;
 
 		void CreatePMat();
 
@@ -40,7 +43,9 @@ namespace CC {
 		void PrintProgramLog(int prog);
 		bool CheckOpenGLError();
 		void SetupVertices();
+		void SetupLightData(Mat4 vMatrix);
 		GLuint LoadTexture(const char* textureImagePath);
+		Model LoadModel(const char* modelFilePath);
 
 	public:
 

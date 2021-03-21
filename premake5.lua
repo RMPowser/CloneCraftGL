@@ -30,10 +30,14 @@ workspace("CloneCraftGL")
 			"{MKDIR} %{cfg.buildtarget.directory}textures",
 			"{RMDIR} %{cfg.buildtarget.directory}shaders",
 			"{MKDIR} %{cfg.buildtarget.directory}shaders",
+			"{RMDIR} %{cfg.buildtarget.directory}models",
+			"{MKDIR} %{cfg.buildtarget.directory}models",
 			"{COPYDIR} ../textures %{prj.location}textures", -- for running with the debugger attached in VS
 			"{COPYDIR} ../textures %{cfg.buildtarget.directory}textures", -- for running without the debugger attached
 			"{COPYDIR} ../shaders %{prj.location}shaders", -- for running with the debugger attached in VS
 			"{COPYDIR} ../shaders %{cfg.buildtarget.directory}shaders", -- for running without the debugger attached
+			"{COPYDIR} ../models %{prj.location}models", -- for running with the debugger attached in VS
+			"{COPYDIR} ../models %{cfg.buildtarget.directory}models", -- for running without the debugger attached
 		})
 
 		files{

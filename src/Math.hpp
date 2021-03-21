@@ -77,6 +77,22 @@ namespace CC {
 		};
 	}
 
+	static inline Mat4 Inverse(const Mat4& m) {
+		glm::mat4 g;
+		for (size_t i = 0; i < 16; i++) {
+			g[i % 4][i / 4] = m[i];
+		}
+
+		g = glm::transpose(glm::inverse(g));
+
+		Mat4 r;
+		for (size_t i = 0; i < 16; i++) {
+			r[i] = g[i % 4][i / 4];
+		}
+
+		return r;
+	}
+
 	/// <summary>
 	/// 
 	/// </summary>

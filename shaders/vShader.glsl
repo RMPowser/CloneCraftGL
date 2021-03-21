@@ -1,4 +1,4 @@
-#version 430
+#version 430 core
 
 mat4 BuildTranslateMatrix(float x, float y, float z) {
 	mat4 trans = mat4(1.0, 0.0, 0.0, 0.0,
@@ -40,16 +40,40 @@ mat4 BuildScaleMatrix(float x, float y, float z) {
 	return scale;
 }
 
+struct Light {
+	vec4 ambient;
+	vec4 diffuse;
+	vec4 specular;
+	vec3 position;
+};
 
-layout (location=0) in vec3 position;
-layout (location=1) in vec2 texCoord;
-out vec2 tc;
+struct Material {
+	vec4 ambient;
+	vec4 diffuse;
+	vec4 specular;
+	float shininess;
+};
 
+uniform vec4 globalAmbient;
+uniform Light light;
+uniform Material material;
 uniform mat4 mvMat;
 uniform mat4 pMat;
-layout (binding=0) uniform sampler2D samp; // not used here in vShader
+uniform mat4 nMat; // for transforming normals
+
+layout (location=0) in vec3 vPos;
+layout (location=1) in vec3 vNorm;
+out vec3 varyingVertPos; // vertex position in eye space
+out vec3 varyingNormal; // eye-space vertex normal
+out vec3 varyingLightDir; // vector pointing to the light
+out vec3 varyingHalfVector;
+
+//layout (binding=0) uniform sampler2D samp; // not used here in vShader
 
 void main() {
-	gl_Position = pMat * mvMat * vec4(position, 1.0);
-	tc = texCoord;
+	varyingVertPos = (mvMat * vec4(vPos, 1.0)).xyz;
+	varyingNormal = (nMat * vec4(vNorm, 1.0)).xyz;
+	varyingLightDir = light.position - varyingVertPos;
+	varyingHalfVector = (varyingLightDir + (-varyingVertPos)).xyz;
+	gl_Position = pMat * mvMat * vec4(vPos, 1.0);
 }

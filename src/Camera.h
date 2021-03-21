@@ -5,8 +5,8 @@
 
 namespace CC {
 	class Camera {
-		Mat4 pMat;
 		Mat4 vMat;
+		Mat4 pMat;
 		Vec4 position;
 		Vec4 rotation; // for storing angles about each axis
 

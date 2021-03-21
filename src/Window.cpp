@@ -14,7 +14,7 @@ namespace CC {
 		window = glfwCreateWindow(800, 600, "CloneCraftGL ", 0, 0);
 		glfwMakeContextCurrent(window);
 
-		glfwSwapInterval(0); // vsync
+		glfwSwapInterval(1); // vsync
 
 		if (glewInit() != GLEW_OK) {
 			throw std::exception("failed to init glew!");

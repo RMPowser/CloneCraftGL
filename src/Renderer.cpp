@@ -1,16 +1,20 @@
 #include "Renderer.h"
 #include "OpenGL.hpp"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "TinyObjLoader/tiny_obj_loader.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
 #define vShaderPath "./shaders/vShader.glsl"
 #define fShaderPath "./shaders/fShader.glsl"
 #define textureAtlasPath "./textures/textureAtlas.png"
+#define modelPath "./models/model.obj"
 
 
 
-float FOV = 60;
+float FOV = 90;
 bool resized = true;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -20,8 +24,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 namespace CC {
 	void Renderer::CreatePMat() {
-		aspect = window.GetAspectRatio();
-		cam.PMat() = MakeProjectionMatrix(FOV * RADIAN, aspect, 0.01f, 1000.0f);
+		cam.PMat() = MakeProjectionMatrix(FOV * RADIAN, window.GetAspectRatio(), 0.01f, 1000.0f);
 	}
 
 	GLuint Renderer::CreateShaderProgram(const char* vShaderCode, const char* fShaderCode) {
@@ -69,6 +72,11 @@ namespace CC {
 			std::cout << "linking failed" << std::endl;
 			PrintProgramLog(vfProgram);
 		}
+
+		glValidateProgram(vfProgram);
+
+		glDeleteShader(vShader);
+		glDeleteShader(fShader);
 
 		return vfProgram;
 	}
@@ -142,6 +150,7 @@ namespace CC {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 		int width, height, numChannels;
+		stbi_set_flip_vertically_on_load(true);
 		unsigned char* rawImgData = stbi_load(textureImagePath, &width, &height, &numChannels, 4);
 
 		if (rawImgData) {
@@ -168,11 +177,17 @@ namespace CC {
 	Renderer::Renderer() {
 		renderingProgram = CreateShaderProgram(vShaderPath, fShaderPath);
 		cam.Position() = { 0, 2, 4, 0 };
-		cubeP = { 0.0f, 0.0f, 0.0f, 0.0f };
+		model.mMat.Position() = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		textureAtlas = LoadTexture(textureAtlasPath);
 
 		CreatePMat();
+
+		globalAmbient = { 0.7, 0.7, 0.7, 1.0 };
+		light.ambient = { 0.0, 0.0, 0.0, 1.0 };
+		light.diffuse = { 1.0, 1.0, 1.0, 1.0 };
+		light.specular = { 1.0, 1.0, 1.0, 1.0 };
+		light.position = { 5.0, 2.0, 2.0 };
 
 		SetupVertices();
 
@@ -236,71 +251,182 @@ namespace CC {
 			CreatePMat();
 		}
 
-		// draw cube (buffer 0)
-		cubeMMat = MakeTranslationMatrix(cubeP);
-		mvMat = cam.VMat() * cubeMMat;
+		mvMat = cam.VMat() * model.mMat;
+		invTrns_mvMat = Transpose(Inverse(mvMat));
 
-		mvMatLocation = glGetUniformLocation(renderingProgram, "mvMat");
-		pMatLocation = glGetUniformLocation(renderingProgram, "pMat");
+		mvMatLoc = glGetUniformLocation(renderingProgram, "mvMat");
+		pMatLoc = glGetUniformLocation(renderingProgram, "pMat");
+		nMatLoc = glGetUniformLocation(renderingProgram, "nMat");
 
-		glUniformMatrix4fv(mvMatLocation, 1, GL_FALSE, mvMat.data());
-		glUniformMatrix4fv(pMatLocation, 1, GL_FALSE, cam.PMat().data());
+		glUniformMatrix4fv(mvMatLoc, 1, GL_FALSE, mvMat.data());
+		glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.PMat().data());
+		glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, invTrns_mvMat.data());
+
+		SetupLightData(cam.VMat());
 
 		// verts
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
 		glEnableVertexAttribArray(0);
 
-		// tex coords
+		CheckOpenGLError();
+
+		// normals
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 		glEnableVertexAttribArray(1);
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, textureAtlas);
+		CheckOpenGLError();
 
+		// texture coodinates
+		//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
+		//glEnableVertexAttribArray(2);
+
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, textureAtlas);
+
+		// indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
+
+		CheckOpenGLError();
+
+		//glEnable(GL_CULL_FACE);
+		glFrontFace(GL_CCW);
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LEQUAL);
-		glEnable(GL_CULL_FACE);
-		glFrontFace(GL_CCW);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		glDrawElements(GL_TRIANGLES, model.indices.size(), GL_UNSIGNED_INT, 0);
+		CheckOpenGLError();
+
+		if (CheckOpenGLError()) {
+			PrintProgramLog(renderingProgram);
+		}
 
 		glfwSwapBuffers(window.window);
 	}
 
-	void Renderer::SetupVertices() {
-		float cubeVerts[108] = {
-			0, 0, -1,  1, 1, -1,  1, 0, -1,   0, 0, -1,  0, 1, -1,  1, 1, -1, // north
-			0, 0,  0,  1, 0,  0,  0, 1,  0,   1, 0,  0,  1, 1,  0,  0, 1,  0, // south
-			1, 0,  0,  1, 0, -1,  1, 1,  0,   1, 0, -1,  1, 1, -1,  1, 1,  0, // east
-			0, 0, -1,  0, 0,  0,  0, 1, -1,   0, 0,  0,  0, 1,  0,  0, 1, -1, // west
-			0, 1,  0,  1, 1,  0,  1, 1, -1,   0, 1,  0,  1, 1, -1,  0, 1, -1, // top
-			1, 0,  0,  0, 0, -1,  1, 0, -1,   1, 0,  0,  0, 0,  0,  0, 0, -1 // bot
-		};
+	Model Renderer::LoadModel(const char* modelFilePath) {
+		tinyobj::ObjReader reader;
 
-		float cubeTexCoords[72] = {
-			2, 1,  1, 0,  1, 1,   2, 1,  2, 0,  1, 0, // north
-			1, 1,  2, 1,  1, 0,   2, 1,  2, 0,  1, 0, // south
-			1, 1,  2, 1,  1, 0,   2, 1,  2, 0,  1, 0, // east
-			1, 1,  2, 1,  1, 0,   2, 1,  2, 0,  1, 0, // west
-			0, 1,  1, 1,  1, 0,   0, 1,  1, 0,  0, 0, // top
-			3, 0,  2, 1,  3, 1,   3, 0,  2, 0,  2, 1 // bot
-		};
-
-		// textureAtlas is 64x64 blocks
-		float unit = 1.0 / 64.0;
-		for (size_t i = 0; i < 72; i++) {
-			cubeTexCoords[i] *= unit;
+		if (!reader.ParseFromFile(modelFilePath)) {
+			if (!reader.Error().empty()) {
+				std::cerr << "TinyObjReader: " << reader.Error();
+				throw std::exception("failed to load obj file!");
+			}
+			throw std::exception("failed to load obj file!");
 		}
+
+		if (!reader.Warning().empty()) {
+			std::cout << "TinyObjReader: " << reader.Warning();
+		}
+
+		Model m;
+		auto& attrib = reader.GetAttrib();
+		auto& shapes = reader.GetShapes();
+		auto& materials = reader.GetMaterials();
+
+		// Loop over shapes
+		for (size_t s = 0; s < shapes.size(); s++) {
+			// Loop over faces(polygon)
+			size_t index_offset = 0;
+			for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+				int fv = shapes[s].mesh.num_face_vertices[f];
+
+				// Loop over vertices in the face.
+				for (size_t v = 0; v < fv; v++) {
+					// access to vertex
+					tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+					tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
+					tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
+					tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
+
+					tinyobj::real_t nx;
+					tinyobj::real_t ny;
+					tinyobj::real_t nz;
+					if (attrib.normals.size() != 0) {
+						nx = attrib.normals[3 * idx.normal_index + 0];
+						ny = attrib.normals[3 * idx.normal_index + 1];
+						nz = attrib.normals[3 * idx.normal_index + 2];
+					}
+					else {
+						nx = ny = nz = 0;
+					}
+					
+					tinyobj::real_t tx;
+					tinyobj::real_t ty;
+					if (attrib.texcoords.size() != 0) {
+						tx = attrib.texcoords[2 * idx.texcoord_index + 0];
+						ty = attrib.texcoords[2 * idx.texcoord_index + 1];
+					}
+					else {
+						tx = ty = 0;
+					}
+
+					m.indices.push_back(m.vertices.size());
+					m.vertices.push_back({ {vx, vy, vz}, {nx, ny, nz}, {tx, ty} });
+				}
+				index_offset += fv;
+			}
+		}
+
+		return m;
+	}
+
+	void Renderer::SetupVertices() {
+		model = LoadModel(modelPath);
+		model.material = Materials::gold;
+
+
 
 		glGenVertexArrays(numVAOs, vao);
 		glBindVertexArray(vao[0]);
+
 		glGenBuffers(numVBOs, vbo);
 
+		// vertices
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVerts), cubeVerts, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
 
+		// normals
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(cubeTexCoords), cubeTexCoords, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+
+		// texture coordinates
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+
+		// indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), model.indices.data(), GL_STATIC_DRAW);
+
+		CheckOpenGLError();
+	}
+
+	void Renderer::SetupLightData(Mat4 vMatrix) {
+		// convert lights position to view space
+		Vec3 lightPosViewSpace(vMatrix * Vec4(light.position, 1.0));
+
+		// get locations of light and material fields in shader
+		L_GlobalAmbLoc	= glGetUniformLocation(renderingProgram, "globalAmbient");
+		L_AmbLoc		= glGetUniformLocation(renderingProgram, "light.ambient");
+		L_DiffLoc		= glGetUniformLocation(renderingProgram, "light.diffuse");
+		L_SpecLoc		= glGetUniformLocation(renderingProgram, "light.specular");
+		L_PosLoc		= glGetUniformLocation(renderingProgram, "light.position");
+		M_AmbLoc		= glGetUniformLocation(renderingProgram, "material.ambient");
+		M_DiffLoc		= glGetUniformLocation(renderingProgram, "material.diffuse");
+		M_SpecLoc		= glGetUniformLocation(renderingProgram, "material.specular");
+		M_ShiLoc		= glGetUniformLocation(renderingProgram, "material.shininess");
+
+		// set the fields in the shader
+		glProgramUniform4fv(renderingProgram, L_GlobalAmbLoc, 1, &globalAmbient[0]);
+		glProgramUniform4fv(renderingProgram, L_AmbLoc, 1, &light.ambient[0]);
+		glProgramUniform4fv(renderingProgram, L_DiffLoc, 1, &light.diffuse[0]);
+		glProgramUniform4fv(renderingProgram, L_SpecLoc, 1, &light.specular[0]);
+		glProgramUniform3fv(renderingProgram, L_PosLoc, 1, &light.position[0]);
+		glProgramUniform4fv(renderingProgram, M_AmbLoc, 1, &model.material.ambient[0]);
+		glProgramUniform4fv(renderingProgram, M_DiffLoc, 1, &model.material.diffuse[0]);
+		glProgramUniform4fv(renderingProgram, M_SpecLoc, 1, &model.material.specular[0]);
+		glProgramUniform1f(renderingProgram, M_ShiLoc, model.material.shininess);
 	}
 }

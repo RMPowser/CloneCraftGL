@@ -10,7 +10,6 @@ using namespace std;
 
 namespace CC {
 	struct Model {
-		Mat4 mMat = IdentityMatrix();
 		vector<Vertex> vertices;
 		vector<unsigned int> indices;
 		Material material;

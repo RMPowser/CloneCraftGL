@@ -2,28 +2,30 @@
 #define CAMERA_H
 
 #include "Math.hpp"
+#include "Window.h"
 
 namespace CC {
 	class Camera {
-		Mat4 vMat;
-		Mat4 pMat;
-		Vec4 position;
-		Vec4 rotation; // for storing angles about each axis
+	private:
+		float fovY = 90;
 
 		void MakeViewMatrix();
 
 	public:
-		Camera();
+		Mat4 vMat;
+		Mat4 pMat;
+		Vec3 position;
+		Vec3 rotation; // for storing angles about each axis
+
+		Camera(const Vec3& spawnLocation);
 
 		Vec4 GetForwardAxis();
 		Vec4 GetRightAxis();
 		Vec4 GetUpAxis();
 		void Update();
-
-		inline Mat4& VMat() { return vMat; }
-		inline Mat4& PMat() { return pMat; }
-		inline Vec4& Position() { return position; }
-		inline Vec4& Rotation() { return rotation; }
+		inline const float GetFOV() const { return fovY; }
+		void SetFOV(float fovY, float aspectRatio);
+		void RecreateProjectionMatrix(float aspectRatio);
 
 		bool operator==(const Camera& other) const;
 		bool operator!=(const Camera& other) const;

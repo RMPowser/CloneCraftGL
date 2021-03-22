@@ -1,4 +1,4 @@
-#version 430 core
+#version 430
 
 struct PositionalLight {
 	vec4 ambient;
@@ -47,5 +47,6 @@ void main() {
 	vec3 specular = light.specular.xyz * material.specular.xyz * pow(max(cosPhi, 0.0), material.shininess * 3.0);
 
 	diffuse = (diffuse * 0.5) + (texture(samp, texCoord).xyz * 0.5);
-	fragColor = vec4((ambient + diffuse + specular), 1.0);
+	// fragColor = vec4((ambient + diffuse + specular), 1.0);
+	fragColor = texture(samp, texCoord);
 }

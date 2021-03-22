@@ -3,10 +3,10 @@
 
 namespace CC {
 	Mat4::Mat4() {
-		glmMat = { 0, 0, 0, 0,
-				   0, 0, 0, 0,
-				   0, 0, 0, 0,
-				   0, 0, 0, 0 };
+		glmMat = { 1, 0, 0, 0,
+				   0, 1, 0, 0,
+				   0, 0, 1, 0,
+				   0, 0, 0, 1 };
 	}
 
 	Mat4::Mat4(const Mat4& other) {

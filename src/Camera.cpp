@@ -6,36 +6,48 @@ namespace CC {
 		v *= MakeRotateXMatrix(rotation[0] * RADIAN);
 		v *= MakeRotateYMatrix(rotation[1] * RADIAN);
 		v *= MakeRotateZMatrix(rotation[2] * RADIAN);
-		v *= MakeTranslationMatrix({ -position[0], -position[1], -position[2], -position[3] });
+		v *= MakeTranslationMatrix({ -position.x, -position.y, -position.z, 1 });
 
 		vMat = v;
 	}
 	
-	Camera::Camera() {
+	Camera::Camera(const Vec3& spawnLocation) {
+		position = spawnLocation;
 	}
 
 	Vec4 Camera::GetForwardAxis() {
 		Vec4 r { 0, 0, 1, 1 }; // -z axis is forward
-		Mat4 rotateY = MakeRotateYMatrix(-rotation[1] * RADIAN);
-
-		r = rotateY * r;
+		r = MakeRotateYMatrix(-rotation[1] * RADIAN) * r;
 		return r;
 	}
 	
 	Vec4 Camera::GetRightAxis() {
-		Vec4 r = GetForwardAxis();
-		r = Cross(r, Vec4(0, -1, 0, 1));
-		return r;
+		Vec4 fwd { 0, 0, 1, 1 }; // -z axis is forward
+		fwd = MakeRotateYMatrix(-rotation[1] * RADIAN) * fwd;
+
+		return Cross(fwd, Vec4(0, -1, 0, 1));
 	}
 
 	Vec4 Camera::GetUpAxis() {
-		Vec4 forwardAxis = GetForwardAxis();
-		Vec4 rightAxis = GetRightAxis();
-		return Cross(forwardAxis, rightAxis);
+		Vec4 fwd { 0, 0, 1, 1 }; // -z axis is forward
+		fwd = MakeRotateYMatrix(-rotation[1] * RADIAN) * fwd;
+
+		Vec4 right = Cross(fwd, Vec4(0, -1, 0, 1));
+		
+		return Cross(fwd, right);
 	}
 
 	void Camera::Update() {
 		MakeViewMatrix();
+	}
+
+	void Camera::SetFOV(float _fovY, float aspectRatio) {
+		fovY = _fovY;
+		RecreateProjectionMatrix(aspectRatio);
+	}
+
+	void Camera::RecreateProjectionMatrix(float aspectRatio) {
+		pMat = MakeProjectionMatrix(fovY * RADIAN, aspectRatio, 0.01f, 1000.0f);
 	}
 
 	bool Camera::operator==(const Camera& other) const {

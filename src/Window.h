@@ -8,42 +8,30 @@
 
 namespace CC {
 	class Window {
+		friend class Renderer;
 		// window
+	private:
+		GLFWwindow* glfwWindow;
 	public:
-		GLFWwindow* window;
 		Window();
 		~Window();
-		bool IsFocus();
-		bool ShouldClose();
+		bool IsFocus() const;
+		bool ShouldClose() const;
 		void SetWindowName(const char* newName);
-		float GetAspectRatio();
+		float GetAspectRatio() const;
+		void Update();
 
 		// inputHandler
 	private:
 		GW::INPUT::GInput inputHandler;
 		std::unordered_map<int, bool> keys;
-		Vec2 clientCenter { 0, 0 };
 		Vec2 mouseDelta { 0, 0 };
-		bool flyToggle = false;
-		bool firstMouse = true;
-		float player_sideAxis = 0; // left/right axis
-		float player_fwdAxis = 0; // forward/backward axis
-		float player_upAxis = 0; // up/down axis
-		float light_sideAxis = 0;
-		float light_fwdAxis = 0;
-		float light_upAxis = 0;
 
 	public:
-		inline bool GetKey(int keyCode) { return keys[keyCode]; }
-		inline float GetInputPlayerAxisSide() { return player_sideAxis; }
-		inline float GetInputPlayerAxisFwd() { return player_fwdAxis; }
-		inline float GetInputPlayerAxisUp() { return player_upAxis; }
-		inline float GetInputLightAxisSide() { return light_sideAxis; }
-		inline float GetInputLightAxisFwd() { return light_fwdAxis; }
-		inline float GetInputLightAxisUp() { return light_upAxis; }
-		inline const Vec2& GetMouseDelta() const { return mouseDelta; }
+		bool GetKey(int keyCode);
+		inline const float GetMouseDeltaX() const { return mouseDelta.x; }
+		inline const float GetMouseDeltaY() const { return mouseDelta.z; }
 
-		void PollInput();
 	};
 }
 

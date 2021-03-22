@@ -5,10 +5,10 @@
 #include "Matrix.h"
 #include <cmath>
 
+#define PI 3.14159265358979f
+#define RADIAN (PI / 180.0f)
 
 namespace CC {
-	static constexpr float PI = 3.14159265358979f;
-	static constexpr float RADIAN = (PI / 180.0f);
 
 	static inline Mat4 MakeProjectionMatrix(float fovY, float aspect, float zNear, float zFar) {
 		glm::mat4 g = glm::perspective(fovY, aspect, zNear, zFar);

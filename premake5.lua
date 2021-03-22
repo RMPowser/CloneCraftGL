@@ -7,6 +7,7 @@ workspace("CloneCraftGL")
 	--flags("OmitDefaultLibrary")
 
 	includedirs({
+		"$(BOOST_SDK)",
 		"includes",
 	})
 	
@@ -62,6 +63,7 @@ workspace("CloneCraftGL")
 			defines({
 			})
 			links({
+				"libnoise-d.lib",
 			})
 
 		filter("configurations:Release")
@@ -70,4 +72,5 @@ workspace("CloneCraftGL")
 				"NDEBUG"
 			})
 			links({
+				"libnoise-r.lib",
 			})

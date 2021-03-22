@@ -1,11 +1,11 @@
 #include "Renderer.h"
 #include "OpenGL.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
 #define TINYOBJLOADER_IMPLEMENTATION
+#include "stb/stb_image.h"
 #include "TinyObjLoader/tiny_obj_loader.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
 
 #define vShaderPath "./shaders/vShader.glsl"
 #define fShaderPath "./shaders/fShader.glsl"
@@ -14,7 +14,6 @@
 
 
 
-float FOV = 90;
 bool resized = true;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -23,10 +22,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 }
 
 namespace CC {
-	void Renderer::CreatePMat() {
-		cam.PMat() = MakeProjectionMatrix(FOV * RADIAN, window.GetAspectRatio(), 0.01f, 1000.0f);
-	}
-
 	GLuint Renderer::CreateShaderProgram(const char* vShaderCode, const char* fShaderCode) {
 		std::string vShaderStr = ReadShaderSource(vShaderCode);
 		std::string fShaderStr = ReadShaderSource(fShaderCode);
@@ -138,12 +133,125 @@ namespace CC {
 		return foundError;
 	}
 
-	GLuint Renderer::LoadTexture(const char* textureImagePath) {
-		GLuint texture;
+	
+
+
+	Renderer::Renderer(Window& window) : window(window) {
+		renderingProgram = CreateShaderProgram(vShaderPath, fShaderPath);
+		glfwSwapInterval(1); // vsync
+		glEnable(GL_CULL_FACE);
+		glFrontFace(GL_CCW);
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
+		SetClearColor((70.0f / 255), (160.0f / 255), (255.0f / 255), (255.0f / 255));
+
+		glfwSetWindowSizeCallback(window.glfwWindow, framebuffer_size_callback);
+
+		
+		glGenBuffers(numVBOs, vbo);
+	}
+
+	void Renderer::SetClearColor(float r, float g, float b, float a) {
+		glClearColor(r, g, b, a);
+	}
+
+	void Renderer::ClearScreen() {
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
+
+	void Renderer::SetActiveTexture(const unsigned int& texture) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture);
+	}
+
+	void Renderer::Draw(Camera& cam, const Model& model, const Mat4& mMat, const unsigned int& vao) {
+		CheckOpenGLError();
+		glUseProgram(renderingProgram);
+		CheckOpenGLError();
+
+		if (resized) {
+			resized = false;
+			cam.RecreateProjectionMatrix(window.GetAspectRatio());
+		}
+
+		glBindVertexArray(vao);
+
+		//SetupLightData(cam.vMat, light, model);
+
+		mvMat = cam.vMat * IdentityMatrix();
+		nMat = Transpose(Inverse(mvMat));
+
+		mvMatLoc = glGetUniformLocation(renderingProgram, "mvMat");
+		pMatLoc = glGetUniformLocation(renderingProgram, "pMat");
+		nMatLoc = glGetUniformLocation(renderingProgram, "nMat");
+
+		glUniformMatrix4fv(mvMatLoc, 1, GL_FALSE, mvMat.data());
+		glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.pMat.data());
+		glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, nMat.data());
+
+		// verts
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, position));
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		assert(CheckOpenGLError() == false);
+		// normals
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+		glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(1);
+		assert(CheckOpenGLError() == false);
+		// texture coodinates
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(2);
+		assert(CheckOpenGLError() == false);
+		// indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), model.indices.data(), GL_STATIC_DRAW);
+
+		glDrawElements(GL_LINES, model.indices.size(), GL_UNSIGNED_INT, 0);
+	}
+
+	void Renderer::SwapBuffers() {
+		glfwSwapBuffers(window.glfwWindow);
+	}
+
+	void Renderer::SetupLightData(Mat4& vMatrix, PositionalLight& light, Model& model) {
+		// convert lights position to view space
+		Vec3 lightPosViewSpace(vMatrix * Vec4(light.position, 1.0));
+
+		// get locations of light and material fields in shader
+		L_GlobalAmbLoc	= glGetUniformLocation(renderingProgram, "globalAmbient");
+		L_AmbLoc		= glGetUniformLocation(renderingProgram, "light.ambient");
+		L_DiffLoc		= glGetUniformLocation(renderingProgram, "light.diffuse");
+		L_SpecLoc		= glGetUniformLocation(renderingProgram, "light.specular");
+		L_PosLoc		= glGetUniformLocation(renderingProgram, "light.position");
+		M_AmbLoc		= glGetUniformLocation(renderingProgram, "material.ambient");
+		M_DiffLoc		= glGetUniformLocation(renderingProgram, "material.diffuse");
+		M_SpecLoc		= glGetUniformLocation(renderingProgram, "material.specular");
+		M_ShiLoc		= glGetUniformLocation(renderingProgram, "material.shininess");
+
+		// set the fields in the shader
+		glProgramUniform4fv(renderingProgram, L_GlobalAmbLoc, 1, &globalAmbient[0]);
+		glProgramUniform4fv(renderingProgram, L_AmbLoc, 1, &light.ambient[0]);
+		glProgramUniform4fv(renderingProgram, L_DiffLoc, 1, &light.diffuse[0]);
+		glProgramUniform4fv(renderingProgram, L_SpecLoc, 1, &light.specular[0]);
+		glProgramUniform3fv(renderingProgram, L_PosLoc, 1, &light.position[0]);
+		glProgramUniform4fv(renderingProgram, M_AmbLoc, 1, &model.material.ambient[0]);
+		glProgramUniform4fv(renderingProgram, M_DiffLoc, 1, &model.material.diffuse[0]);
+		glProgramUniform4fv(renderingProgram, M_SpecLoc, 1, &model.material.specular[0]);
+		glProgramUniform1f(renderingProgram, M_ShiLoc, model.material.shininess);
+	}
+
+	unsigned int Renderer::LoadTexture(const char* textureImagePath) const {
+		unsigned int texture;
 
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
-		
+
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
@@ -159,7 +267,7 @@ namespace CC {
 
 			// if also anisotropic filtering
 			if (("GL_EXT_texture_filter_anisotropic")) {
-				GLfloat anisoSetting = 0.0f;
+				float anisoSetting = 0.0f;
 				glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
 				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting);
 			}
@@ -173,177 +281,7 @@ namespace CC {
 		return texture;
 	}
 
-
-	Renderer::Renderer() {
-		renderingProgram = CreateShaderProgram(vShaderPath, fShaderPath);
-		cam.Position() = { 0, 2, 4, 0 };
-		SetupVertices();
-		model.mMat.Position() = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-
-		textureAtlas = LoadTexture(textureAtlasPath);
-
-		CreatePMat();
-
-		globalAmbient = { 0.7, 0.7, 0.7, 1.0 };
-		light.ambient = { 0.0, 0.0, 0.0, 1.0 };
-		light.diffuse = { 1.0, 1.0, 1.0, 1.0 };
-		light.specular = { 1.0, 1.0, 1.0, 1.0 };
-		light.position = { 2.0, 2.0, 2.0 };
-		lightModel.mMat.Position() = Vec4(light.position, 1);
-
-
-		using namespace GW;
-		using namespace GW::CORE;
-		using namespace GW::SYSTEM;
-
-		glfwSetWindowSizeCallback(window.window, framebuffer_size_callback);
-	}
-
-	
-
-	void Renderer::Update(double dt) {
-		glfwPollEvents();
-
-		if (window.IsFocus()) {
-			window.PollInput();
-		}
-
-		float speed = 5.0f;
-		float mouseSensitivity = 0.15f;
-
-		// --- horizontal movement --- //
-		Vec4 moveDirection = Normalize(cam.GetRightAxis() * window.GetInputPlayerAxisSide() + cam.GetForwardAxis() * window.GetInputPlayerAxisFwd());
-		cam.Position() += moveDirection * speed * dt;
-		moveDirection = Normalize(cam.GetRightAxis() * window.GetInputLightAxisSide() + cam.GetForwardAxis() * window.GetInputLightAxisFwd());
-		light.position += moveDirection * speed * dt;
-
-		// --- vertical movement --- //
-		cam.Position()[1] += window.GetInputPlayerAxisUp() * speed * dt;
-		light.position[1] += window.GetInputLightAxisUp() * speed * dt;
-
-
-		lightModel.mMat.Position() = Vec4(light.position, 1);
-
-		// --- mouse look --- //
-		Vec2 mouseDelta = window.GetMouseDelta();
-		cam.Rotation()[0] += mouseDelta[1] * mouseSensitivity;
-		cam.Rotation()[1] += mouseDelta[0] * mouseSensitivity;
-
-		// --- mouse scroll --- //
-		if (window.GetKey(G_MOUSE_SCROLL_UP)) {
-			FOV--;
-			CreatePMat();
-		}
-
-		if (window.GetKey(G_MOUSE_SCROLL_DOWN)) {
-			FOV++;
-			CreatePMat();
-		}
-
-
-		cam.Update();
-	}
-
-	void Renderer::Draw(double dt) {
-		glClear(GL_DEPTH_BUFFER_BIT);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		glUseProgram(renderingProgram);
-
-		if (resized) {
-			resized = false;
-			CreatePMat();
-		}
-
-		
-
-
-		glBindVertexArray(vao[0]);
-
-		SetupLightData(cam.VMat(), light, model);
-
-		mvMat = cam.VMat() * model.mMat;
-		invTrns_mvMat = Transpose(Inverse(mvMat));
-
-		mvMatLoc = glGetUniformLocation(renderingProgram, "mvMat");
-		pMatLoc = glGetUniformLocation(renderingProgram, "pMat");
-		nMatLoc = glGetUniformLocation(renderingProgram, "nMat");
-
-		glUniformMatrix4fv(mvMatLoc, 1, GL_FALSE, mvMat.data());
-		glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.PMat().data());
-		glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, invTrns_mvMat.data());
-
-		// verts
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
-		// normals
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
-		// texture coodinates
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, textureAtlas);
-
-		// indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), model.indices.data(), GL_STATIC_DRAW);
-
-		glEnable(GL_CULL_FACE);
-		glFrontFace(GL_CCW);
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
-
-		glDrawElements(GL_TRIANGLES, model.indices.size(), GL_UNSIGNED_INT, 0);
-
-
-
-		glBindVertexArray(vao[1]);
-
-		SetupLightData(cam.VMat(), light, lightModel);
-
-		mvMat = cam.VMat() * lightModel.mMat;
-		invTrns_mvMat = Transpose(Inverse(mvMat));
-
-		mvMatLoc = glGetUniformLocation(renderingProgram, "mvMat");
-		pMatLoc = glGetUniformLocation(renderingProgram, "pMat");
-		nMatLoc = glGetUniformLocation(renderingProgram, "nMat");
-
-		glUniformMatrix4fv(mvMatLoc, 1, GL_FALSE, mvMat.data());
-		glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.PMat().data());
-		glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, invTrns_mvMat.data());
-
-		// verts
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
-		// normals
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
-		// texture coodinates
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		glBufferData(GL_ARRAY_BUFFER, lightModel.vertices.size() * sizeof(Vertex), lightModel.vertices.data(), GL_STATIC_DRAW);
-		glEnableVertexAttribArray(2);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, textureAtlas);
-
-		// indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightModel.indices.size() * sizeof(unsigned int), lightModel.indices.data(), GL_STATIC_DRAW);
-
-		glEnable(GL_CULL_FACE);
-		glFrontFace(GL_CCW);
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
-
-		glDrawElements(GL_TRIANGLES, lightModel.indices.size(), GL_UNSIGNED_INT, 0);
-
-		glfwSwapBuffers(window.window);
-	}
-
-	Model Renderer::LoadModel(const char* modelFilePath) {
+	Model Renderer::LoadModel(const char* modelFilePath) const {
 		tinyobj::ObjReader reader;
 
 		if (!reader.ParseFromFile(modelFilePath)) {
@@ -389,7 +327,7 @@ namespace CC {
 					else {
 						nx = ny = nz = 0;
 					}
-					
+
 					tinyobj::real_t tx;
 					tinyobj::real_t ty;
 					if (attrib.texcoords.size() != 0) {
@@ -408,90 +346,5 @@ namespace CC {
 		}
 
 		return m;
-	}
-
-	void Renderer::SetupVertices() {
-		model = LoadModel(modelPath);
-		model.material = Materials::gold;
-
-		lightModel = model;
-		lightModel.material = Materials::silver;
-
-		for (size_t i = 0; i < lightModel.vertices.size(); i++) {
-			lightModel.vertices[i].position[0] /= 2;
-			lightModel.vertices[i].position[1] /= 2;
-			lightModel.vertices[i].position[2] /= 2;
-		}
-
-
-		glGenVertexArrays(numVAOs, vao);
-		
-		glGenBuffers(numVBOs, vbo);
-
-
-
-		glBindVertexArray(vao[0]);
-		// verts
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-		glEnableVertexAttribArray(0);
-		// normals
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-		glEnableVertexAttribArray(1);
-		// texture coodinates
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
-		glEnableVertexAttribArray(2);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, textureAtlas);
-
-
-		glBindVertexArray(vao[1]);
-		// verts
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-		glEnableVertexAttribArray(0);
-		// normals
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-		glEnableVertexAttribArray(1);
-		// texture coodinates
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void* )offsetof(Vertex, texCoord));
-		glEnableVertexAttribArray(2);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, textureAtlas);
-
-		CheckOpenGLError();
-	}
-
-	void Renderer::SetupLightData(Mat4& vMatrix, PositionalLight& light, Model& model) {
-		// convert lights position to view space
-		Vec3 lightPosViewSpace(vMatrix * Vec4(light.position, 1.0));
-
-		// get locations of light and material fields in shader
-		L_GlobalAmbLoc	= glGetUniformLocation(renderingProgram, "globalAmbient");
-		L_AmbLoc		= glGetUniformLocation(renderingProgram, "light.ambient");
-		L_DiffLoc		= glGetUniformLocation(renderingProgram, "light.diffuse");
-		L_SpecLoc		= glGetUniformLocation(renderingProgram, "light.specular");
-		L_PosLoc		= glGetUniformLocation(renderingProgram, "light.position");
-		M_AmbLoc		= glGetUniformLocation(renderingProgram, "material.ambient");
-		M_DiffLoc		= glGetUniformLocation(renderingProgram, "material.diffuse");
-		M_SpecLoc		= glGetUniformLocation(renderingProgram, "material.specular");
-		M_ShiLoc		= glGetUniformLocation(renderingProgram, "material.shininess");
-
-		// set the fields in the shader
-		glProgramUniform4fv(renderingProgram, L_GlobalAmbLoc, 1, &globalAmbient[0]);
-		glProgramUniform4fv(renderingProgram, L_AmbLoc, 1, &light.ambient[0]);
-		glProgramUniform4fv(renderingProgram, L_DiffLoc, 1, &light.diffuse[0]);
-		glProgramUniform4fv(renderingProgram, L_SpecLoc, 1, &light.specular[0]);
-		glProgramUniform3fv(renderingProgram, L_PosLoc, 1, &light.position[0]);
-		glProgramUniform4fv(renderingProgram, M_AmbLoc, 1, &model.material.ambient[0]);
-		glProgramUniform4fv(renderingProgram, M_DiffLoc, 1, &model.material.diffuse[0]);
-		glProgramUniform4fv(renderingProgram, M_SpecLoc, 1, &model.material.specular[0]);
-		glProgramUniform1f(renderingProgram, M_ShiLoc, model.material.shininess);
 	}
 }

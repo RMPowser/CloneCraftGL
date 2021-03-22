@@ -5,10 +5,10 @@
 
 namespace CC {
 	struct Material {
-		Vec4 ambient;
-		Vec4 diffuse;
-		Vec4 specular;
-		float shininess;
+		Vec4 ambient = { 0, 0, 0, 1 };
+		Vec4 diffuse = { 1, 0, 1, 1 };
+		Vec4 specular = { 1, 1, 1, 1 };
+		float shininess = 0.0f;
 	};
 
 	namespace Materials {

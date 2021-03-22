@@ -57,13 +57,12 @@ namespace CC {
 
 #ifndef NDEBUG
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-#endif // !NDEBUG
+#endif
 
 
-		window = glfwCreateWindow(800, 600, "CloneCraftGL ", 0, 0);
-		glfwMakeContextCurrent(window);
+		glfwWindow = glfwCreateWindow(800, 600, "CloneCraftGL ", 0, 0);
+		glfwMakeContextCurrent(glfwWindow);
 
-		glfwSwapInterval(1); // vsync
 
 		if (glewInit() != GLEW_OK) {
 			throw std::exception("failed to init glew!");
@@ -71,7 +70,7 @@ namespace CC {
 
 		GW::SYSTEM::UNIVERSAL_WINDOW_HANDLE uwh;
 #ifdef _WIN32
-		uwh.window = glfwGetWin32Window(window);
+		uwh.window = glfwGetWin32Window(glfwWindow);
 #elif defined(__linux__)
 		uwh.window = glfwGetX11Window(window);
 #endif
@@ -80,95 +79,54 @@ namespace CC {
 			throw std::exception("inputHandler creation failed!");
 		}
 
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		//glDebugMessageCallback(glDebugCallback, nullptr);
 		GLuint bogus;
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, &bogus, true);
-
-		glClearColor((70.0f / 255), (160.0f / 255), (255.0f / 255), (255.0f / 255));
 	}
 
 	Window::~Window() {
-		glfwDestroyWindow(window);
+		glfwDestroyWindow(glfwWindow);
 		glfwTerminate();
 	}
 
-	bool Window::IsFocus() {
-		return glfwGetWindowAttrib(window, GLFW_FOCUSED);
+	bool Window::IsFocus() const {
+		return glfwGetWindowAttrib(glfwWindow, GLFW_FOCUSED);
 	}
 
-	bool Window::ShouldClose() {
-		return glfwWindowShouldClose(window);
+	bool Window::ShouldClose() const {
+		return glfwWindowShouldClose(glfwWindow);
 	}
 
 	void Window::SetWindowName(const char* newName) {
-		glfwSetWindowTitle(window, newName);
+		glfwSetWindowTitle(glfwWindow, newName);
 	}
 
-	float Window::GetAspectRatio() {
+	float Window::GetAspectRatio() const {
 		int width, height;
-		glfwGetFramebufferSize(window, &width, &height);
+		glfwGetFramebufferSize(glfwWindow, &width, &height);
 		return (float)width / (float)height;
 	}
 
-	void Window::PollInput() {
-		static auto getKey = [&](int keyCode) -> bool {
-			float outstate;
-			inputHandler.GetState(keyCode, outstate);
-			return outstate > 0.0f ? true : false;
-		};
-
-		keys[G_KEY_W] = getKey(G_KEY_W);
-		keys[G_KEY_A] = getKey(G_KEY_A);
-		keys[G_KEY_S] = getKey(G_KEY_S);
-		keys[G_KEY_D] = getKey(G_KEY_D);
-		keys[G_KEY_I] = getKey(G_KEY_I);
-		keys[G_KEY_J] = getKey(G_KEY_J);
-		keys[G_KEY_K] = getKey(G_KEY_K);
-		keys[G_KEY_L] = getKey(G_KEY_L);
-		keys[G_KEY_O] = getKey(G_KEY_O);
-		keys[G_KEY_U] = getKey(G_KEY_U);
-		keys[G_KEY_F] = getKey(G_KEY_F);
-		keys[G_KEY_SPACE] = getKey(G_KEY_SPACE);
-		keys[G_KEY_CONTROL] = getKey(G_KEY_CONTROL);
-		keys[G_KEY_LEFTSHIFT] = getKey(G_KEY_LEFTSHIFT);
-		keys[G_BUTTON_LEFT] = getKey(G_BUTTON_LEFT);
-		keys[G_BUTTON_RIGHT] = getKey(G_BUTTON_RIGHT);
-		keys[G_MOUSE_SCROLL_UP] = getKey(G_MOUSE_SCROLL_UP);
-		keys[G_MOUSE_SCROLL_DOWN] = getKey(G_MOUSE_SCROLL_DOWN);
-
-		// set axis
-		player_sideAxis = 0;
-		player_fwdAxis = 0;
-		player_upAxis = 0;
-		if (keys[G_KEY_A]) { player_sideAxis -= 1; }
-		if (keys[G_KEY_D]) { player_sideAxis += 1; }
-		if (keys[G_KEY_W]) { player_fwdAxis -= 1; }
-		if (keys[G_KEY_S]) { player_fwdAxis += 1; }
-		if (keys[G_KEY_CONTROL]) { player_upAxis -= 1; }
-		if (keys[G_KEY_SPACE]) { player_upAxis += 1; }
-
-		light_sideAxis = 0;
-		light_fwdAxis = 0;
-		light_upAxis = 0;
-		if (keys[G_KEY_J]) { light_sideAxis -= 1; }
-		if (keys[G_KEY_L]) { light_sideAxis += 1; }
-		if (keys[G_KEY_I]) { light_fwdAxis -= 1; }
-		if (keys[G_KEY_K]) { light_fwdAxis += 1; }
-		if (keys[G_KEY_O]) { light_upAxis -= 1; }
-		if (keys[G_KEY_U]) { light_upAxis += 1; }
-
+	void Window::Update() {
+		glfwPollEvents();
 
 		float x, y;
 		GW::GReturn result = inputHandler.GetMouseDelta(x, y);
 		if (G_PASS(result) && result != GW::GReturn::REDUNDANT) {
-			mouseDelta[0] = x;
-			mouseDelta[1] = y;
+			mouseDelta.x = x;
+			mouseDelta.z = y;
 		}
 		else {
-			mouseDelta[0] = mouseDelta[1] = 0;
+			mouseDelta = { 0, 0 };
 		}
+	}
+
+	bool Window::GetKey(int GW_keyCode) {
+		float outstate;
+		inputHandler.GetState(GW_keyCode, outstate);
+		return outstate > 0.0f ? true : false;
 	}
 }

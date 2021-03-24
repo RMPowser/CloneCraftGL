@@ -6,6 +6,11 @@
 #include "stb/stb_image.h"
 #include "TinyObjLoader/tiny_obj_loader.h"
 
+#define ASSERT(x) if (x) __debugbreak();
+#define GLErrorCheck(x) CheckOpenGLError();\
+	x;\
+	ASSERT(CheckOpenGLError())
+
 
 #define vShaderPath "./shaders/vShader.glsl"
 #define fShaderPath "./shaders/fShader.glsl"
@@ -16,9 +21,13 @@
 
 bool resized = true;
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 	resized = true;
+}
+
+static void GLClearError() {
+
 }
 
 namespace CC {
@@ -122,7 +131,7 @@ namespace CC {
 	}
 
 
-	bool Renderer::CheckOpenGLError() {
+	bool Renderer::CheckOpenGLError() const {
 		bool foundError = false;
 		int glErr = glGetError();
 		while (glErr != GL_NO_ERROR) {
@@ -139,80 +148,75 @@ namespace CC {
 	Renderer::Renderer(Window& window) : window(window) {
 		renderingProgram = CreateShaderProgram(vShaderPath, fShaderPath);
 		glfwSwapInterval(1); // vsync
-		glEnable(GL_CULL_FACE);
-		glFrontFace(GL_CCW);
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
+		GLErrorCheck(glEnable(GL_CULL_FACE));
+		GLErrorCheck(glFrontFace(GL_CCW));
+		GLErrorCheck(glEnable(GL_DEPTH_TEST));
+		GLErrorCheck(glDepthFunc(GL_LEQUAL));
 		SetClearColor((70.0f / 255), (160.0f / 255), (255.0f / 255), (255.0f / 255));
 
 		glfwSetWindowSizeCallback(window.glfwWindow, framebuffer_size_callback);
 
 		
-		glGenBuffers(numVBOs, vbo);
+		GLErrorCheck(glGenBuffers(numVBOs, vbo));
 	}
 
 	void Renderer::SetClearColor(float r, float g, float b, float a) {
-		glClearColor(r, g, b, a);
+		GLErrorCheck(glClearColor(r, g, b, a));
 	}
 
 	void Renderer::ClearScreen() {
-		glClear(GL_DEPTH_BUFFER_BIT);
-		glClear(GL_COLOR_BUFFER_BIT);
+		GLErrorCheck(glClear(GL_DEPTH_BUFFER_BIT));
+		GLErrorCheck(glClear(GL_COLOR_BUFFER_BIT));
 	}
 
 	void Renderer::SetActiveTexture(const unsigned int& texture) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture);
+		GLErrorCheck(glActiveTexture(GL_TEXTURE0));
+		GLErrorCheck(glBindTexture(GL_TEXTURE_2D, texture));
 	}
 
 	void Renderer::Draw(Camera& cam, const Model& model, const Mat4& mMat, const unsigned int& vao) {
-		CheckOpenGLError();
-		glUseProgram(renderingProgram);
-		CheckOpenGLError();
+		GLErrorCheck(glUseProgram(renderingProgram));
 
 		if (resized) {
 			resized = false;
 			cam.RecreateProjectionMatrix(window.GetAspectRatio());
 		}
 
-		glBindVertexArray(vao);
+		GLErrorCheck(glBindVertexArray(vao));
 
 		//SetupLightData(cam.vMat, light, model);
 
 		mvMat = cam.vMat * IdentityMatrix();
 		nMat = Transpose(Inverse(mvMat));
 
-		mvMatLoc = glGetUniformLocation(renderingProgram, "mvMat");
-		pMatLoc = glGetUniformLocation(renderingProgram, "pMat");
-		nMatLoc = glGetUniformLocation(renderingProgram, "nMat");
+		GLErrorCheck(mvMatLoc = glGetUniformLocation(renderingProgram, "mvMat"));
+		GLErrorCheck(pMatLoc = glGetUniformLocation(renderingProgram, "pMat"));
+		GLErrorCheck(nMatLoc = glGetUniformLocation(renderingProgram, "nMat"));
 
-		glUniformMatrix4fv(mvMatLoc, 1, GL_FALSE, mvMat.data());
-		glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.pMat.data());
-		glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, nMat.data());
+		GLErrorCheck(glUniformMatrix4fv(mvMatLoc, 1, GL_FALSE, mvMat.data()));
+		GLErrorCheck(glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.pMat.data()));
+		GLErrorCheck(glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, nMat.data()));
 
 		// verts
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, position));
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
-		glEnableVertexAttribArray(0);
-		assert(CheckOpenGLError() == false);
+		GLErrorCheck(glBindBuffer(GL_ARRAY_BUFFER, vbo[0]));
+		GLErrorCheck(glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, position)));
+		GLErrorCheck(glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW));
+		GLErrorCheck(glEnableVertexAttribArray(0));
 		// normals
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
-		glEnableVertexAttribArray(1);
-		assert(CheckOpenGLError() == false);
+		GLErrorCheck(glBindBuffer(GL_ARRAY_BUFFER, vbo[1]));
+		GLErrorCheck(glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal)));
+		GLErrorCheck(glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW));
+		GLErrorCheck(glEnableVertexAttribArray(1));
 		// texture coodinates
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW);
-		glEnableVertexAttribArray(2);
-		assert(CheckOpenGLError() == false);
+		GLErrorCheck(glBindBuffer(GL_ARRAY_BUFFER, vbo[2]));
+		GLErrorCheck(glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord)));
+		GLErrorCheck(glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW));
+		GLErrorCheck(glEnableVertexAttribArray(2));
 		// indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), model.indices.data(), GL_STATIC_DRAW);
+		GLErrorCheck(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]));
+		GLErrorCheck(glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), model.indices.data(), GL_STATIC_DRAW));
 
-		glDrawElements(GL_LINES, model.indices.size(), GL_UNSIGNED_INT, 0);
+		GLErrorCheck(glDrawElements(GL_LINES, model.indices.size(), GL_UNSIGNED_INT, 0));
 	}
 
 	void Renderer::SwapBuffers() {
@@ -224,52 +228,52 @@ namespace CC {
 		Vec3 lightPosViewSpace(vMatrix * Vec4(light.position, 1.0));
 
 		// get locations of light and material fields in shader
-		L_GlobalAmbLoc	= glGetUniformLocation(renderingProgram, "globalAmbient");
-		L_AmbLoc		= glGetUniformLocation(renderingProgram, "light.ambient");
-		L_DiffLoc		= glGetUniformLocation(renderingProgram, "light.diffuse");
-		L_SpecLoc		= glGetUniformLocation(renderingProgram, "light.specular");
-		L_PosLoc		= glGetUniformLocation(renderingProgram, "light.position");
-		M_AmbLoc		= glGetUniformLocation(renderingProgram, "material.ambient");
-		M_DiffLoc		= glGetUniformLocation(renderingProgram, "material.diffuse");
-		M_SpecLoc		= glGetUniformLocation(renderingProgram, "material.specular");
-		M_ShiLoc		= glGetUniformLocation(renderingProgram, "material.shininess");
+		GLErrorCheck(L_GlobalAmbLoc	= glGetUniformLocation(renderingProgram, "globalAmbient"));
+		GLErrorCheck(L_AmbLoc		= glGetUniformLocation(renderingProgram, "light.ambient"));
+		GLErrorCheck(L_DiffLoc		= glGetUniformLocation(renderingProgram, "light.diffuse"));
+		GLErrorCheck(L_SpecLoc		= glGetUniformLocation(renderingProgram, "light.specular"));
+		GLErrorCheck(L_PosLoc		= glGetUniformLocation(renderingProgram, "light.position"));
+		GLErrorCheck(M_AmbLoc		= glGetUniformLocation(renderingProgram, "material.ambient"));
+		GLErrorCheck(M_DiffLoc		= glGetUniformLocation(renderingProgram, "material.diffuse"));
+		GLErrorCheck(M_SpecLoc		= glGetUniformLocation(renderingProgram, "material.specular"));
+		GLErrorCheck(M_ShiLoc		= glGetUniformLocation(renderingProgram, "material.shininess"));
 
 		// set the fields in the shader
-		glProgramUniform4fv(renderingProgram, L_GlobalAmbLoc, 1, &globalAmbient[0]);
-		glProgramUniform4fv(renderingProgram, L_AmbLoc, 1, &light.ambient[0]);
-		glProgramUniform4fv(renderingProgram, L_DiffLoc, 1, &light.diffuse[0]);
-		glProgramUniform4fv(renderingProgram, L_SpecLoc, 1, &light.specular[0]);
-		glProgramUniform3fv(renderingProgram, L_PosLoc, 1, &light.position[0]);
-		glProgramUniform4fv(renderingProgram, M_AmbLoc, 1, &model.material.ambient[0]);
-		glProgramUniform4fv(renderingProgram, M_DiffLoc, 1, &model.material.diffuse[0]);
-		glProgramUniform4fv(renderingProgram, M_SpecLoc, 1, &model.material.specular[0]);
-		glProgramUniform1f(renderingProgram, M_ShiLoc, model.material.shininess);
+		GLErrorCheck(glProgramUniform4fv(renderingProgram, L_GlobalAmbLoc, 1, &globalAmbient[0]));
+		GLErrorCheck(glProgramUniform4fv(renderingProgram, L_AmbLoc, 1, &light.ambient[0]));
+		GLErrorCheck(glProgramUniform4fv(renderingProgram, L_DiffLoc, 1, &light.diffuse[0]));
+		GLErrorCheck(glProgramUniform4fv(renderingProgram, L_SpecLoc, 1, &light.specular[0]));
+		GLErrorCheck(glProgramUniform3fv(renderingProgram, L_PosLoc, 1, &light.position[0]));
+		GLErrorCheck(glProgramUniform4fv(renderingProgram, M_AmbLoc, 1, &model.material.ambient[0]));
+		GLErrorCheck(glProgramUniform4fv(renderingProgram, M_DiffLoc, 1, &model.material.diffuse[0]));
+		GLErrorCheck(glProgramUniform4fv(renderingProgram, M_SpecLoc, 1, &model.material.specular[0]));
+		GLErrorCheck(glProgramUniform1f(renderingProgram, M_ShiLoc, model.material.shininess));
 	}
 
 	unsigned int Renderer::LoadTexture(const char* textureImagePath) const {
 		unsigned int texture;
 
-		glGenTextures(1, &texture);
-		glBindTexture(GL_TEXTURE_2D, texture);
+		GLErrorCheck(glGenTextures(1, &texture));
+		GLErrorCheck(glBindTexture(GL_TEXTURE_2D, texture));
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		GLErrorCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+		GLErrorCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+		GLErrorCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST));
+		GLErrorCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
 
 		int width, height, numChannels;
 		stbi_set_flip_vertically_on_load(true);
 		unsigned char* rawImgData = stbi_load(textureImagePath, &width, &height, &numChannels, 4);
 
 		if (rawImgData) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rawImgData);
-			glGenerateMipmap(GL_TEXTURE_2D);
+			GLErrorCheck(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rawImgData));
+			GLErrorCheck(glGenerateMipmap(GL_TEXTURE_2D));
 
 			// if also anisotropic filtering
 			if (("GL_EXT_texture_filter_anisotropic")) {
 				float anisoSetting = 0.0f;
-				glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting);
-				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting);
+				GLErrorCheck(glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting));
+				GLErrorCheck(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting));
 			}
 		}
 		else {

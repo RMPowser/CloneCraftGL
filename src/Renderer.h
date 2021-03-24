@@ -36,7 +36,7 @@ namespace CC {
 		std::string ReadShaderSource(const char* filePath);
 		void PrintShaderLog(GLuint shader);
 		void PrintProgramLog(int prog);
-		bool CheckOpenGLError();
+		bool CheckOpenGLError() const;
 
 		void SetupLightData(Mat4& vMatrix, PositionalLight& light, Model& model);
 

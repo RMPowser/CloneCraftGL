@@ -26,7 +26,7 @@ namespace CC {
 			 float x2, float y2, float z2, float w2,
 			 float x3, float y3, float z3, float w3);
 
-		float* data();
+		float* data() const;
 		Vec4& SideAxis();
 		Vec4& UpAxis();
 		Vec4& FwdAxis();

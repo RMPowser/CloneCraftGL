@@ -1,161 +1,53 @@
 #include "Renderer.h"
 #include "OpenGL.hpp"
+#include "ShaderProgram.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "stb/stb_image.h"
 #include "TinyObjLoader/tiny_obj_loader.h"
 
-#define ASSERT(x) if (x) __debugbreak();
-#define GLErrorCheck(x) CheckOpenGLError();\
-	x;\
-	ASSERT(CheckOpenGLError())
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <sstream>
 
-
-#define vShaderPath "./shaders/vShader.glsl"
-#define fShaderPath "./shaders/fShader.glsl"
-#define textureAtlasPath "./textures/textureAtlas.png"
-#define modelPath "./models/model.obj"
-
-
-
-bool resized = true;
-
-static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-	glViewport(0, 0, width, height);
-	resized = true;
+static void PrintShaderLog(GLuint shader) {
+	int len = 0;
+	int chWrittn = 0;
+	char* log;
+	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
+	if (len > 0) {
+		log = (char*)malloc(len);
+		glGetShaderInfoLog(shader, len, &chWrittn, log);
+		std::cout << "Shader Info Log: " << log << std::endl;
+		free(log);
+	}
 }
 
-static void GLClearError() {
 
+static void PrintProgramLog(int prog) {
+	int len = 0;
+	int chWrittn = 0;
+	char* log;
+	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &len);
+	if (len > 0) {
+		log = (char*)malloc(len);
+		glGetProgramInfoLog(prog, len, &chWrittn, log);
+		std::cout << "Program Info Log: " << log << std::endl;
+		free(log);
+	}
 }
+
 
 namespace CC {
-	GLuint Renderer::CreateShaderProgram(const char* vShaderCode, const char* fShaderCode) {
-		std::string vShaderStr = ReadShaderSource(vShaderCode);
-		std::string fShaderStr = ReadShaderSource(fShaderCode);
-
-		const char* vShaderSource = vShaderStr.c_str();
-		const char* fShaderSource = fShaderStr.c_str();
-
-		GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
-		GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-		glShaderSource(vShader, 1, &vShaderSource, NULL);
-		glShaderSource(fShader, 1, &fShaderSource, NULL);
-
-		GLint vertCompiled;
-		GLint fragCompiled;
-		GLint linked;
-
-		glCompileShader(vShader);
-		CheckOpenGLError();
-		glGetShaderiv(vShader, GL_COMPILE_STATUS, &vertCompiled);
-		if (vertCompiled != 1) {
-			std::cout << "vertex compilation failed" << std::endl;
-			PrintShaderLog(vShader);
-		}
-
-		glCompileShader(fShader);
-		CheckOpenGLError();
-		glGetShaderiv(fShader, GL_COMPILE_STATUS, &fragCompiled);
-		if (fragCompiled != 1) {
-			std::cout << "fragment compilation failed" << std::endl;
-			PrintShaderLog(fShader);
-		}
-
-		GLuint vfProgram = glCreateProgram();
-
-		glAttachShader(vfProgram, vShader);
-		glAttachShader(vfProgram, fShader);
-
-		glLinkProgram(vfProgram);
-		CheckOpenGLError();
-		glGetProgramiv(vfProgram, GL_LINK_STATUS, &linked);
-		if (linked != 1) {
-			std::cout << "linking failed" << std::endl;
-			PrintProgramLog(vfProgram);
-		}
-
-		glValidateProgram(vfProgram);
-
-		glDeleteShader(vShader);
-		glDeleteShader(fShader);
-
-		return vfProgram;
-	}
-
-
-	std::string Renderer::ReadShaderSource(const char* filePath) {
-		using namespace std;
-
-		string fileContents;
-		ifstream fileStream(filePath, ios::in);
-		string line = "";
-
-		while (!fileStream.eof()) {
-			getline(fileStream, line);
-			fileContents.append(line + "\n");
-		}
-
-		fileStream.close();
-		return fileContents;
-	}
-
-
-	void Renderer::PrintShaderLog(GLuint shader) {
-		int len = 0;
-		int chWrittn = 0;
-		char* log;
-		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
-		if (len > 0) {
-			log = (char*)malloc(len);
-			glGetShaderInfoLog(shader, len, &chWrittn, log);
-			std::cout << "Shader Info Log: " << log << std::endl;
-			free(log);
-		}
-	}
-
-
-	void Renderer::PrintProgramLog(int prog) {
-		int len = 0;
-		int chWrittn = 0;
-		char* log;
-		glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &len);
-		if (len > 0) {
-			log = (char*)malloc(len);
-			glGetProgramInfoLog(prog, len, &chWrittn, log);
-			std::cout << "Program Info Log: " << log << std::endl;
-			free(log);
-		}
-	}
-
-
-	bool Renderer::CheckOpenGLError() const {
-		bool foundError = false;
-		int glErr = glGetError();
-		while (glErr != GL_NO_ERROR) {
-			std::cout << "glError: " << glErr << std::endl;
-			foundError = true;
-			glErr = glGetError();
-		}
-		return foundError;
-	}
-
-	
-
-
 	Renderer::Renderer(Window& window) : window(window) {
-		renderingProgram = CreateShaderProgram(vShaderPath, fShaderPath);
 		glfwSwapInterval(1); // vsync
 		GLErrorCheck(glEnable(GL_CULL_FACE));
 		GLErrorCheck(glFrontFace(GL_CCW));
 		GLErrorCheck(glEnable(GL_DEPTH_TEST));
 		GLErrorCheck(glDepthFunc(GL_LEQUAL));
 		SetClearColor((70.0f / 255), (160.0f / 255), (255.0f / 255), (255.0f / 255));
-
-		glfwSetWindowSizeCallback(window.glfwWindow, framebuffer_size_callback);
-
 		
 		GLErrorCheck(glGenBuffers(numVBOs, vbo));
 	}
@@ -174,28 +66,12 @@ namespace CC {
 		GLErrorCheck(glBindTexture(GL_TEXTURE_2D, texture));
 	}
 
-	void Renderer::Draw(Camera& cam, const Model& model, const Mat4& mMat, const unsigned int& vao) {
-		GLErrorCheck(glUseProgram(renderingProgram));
-
-		if (resized) {
-			resized = false;
-			cam.RecreateProjectionMatrix(window.GetAspectRatio());
-		}
+	void Renderer::Draw(const Model& model, const unsigned int& vao, const ShaderProgram& shader) {
+		shader.Bind();
 
 		GLErrorCheck(glBindVertexArray(vao));
 
 		//SetupLightData(cam.vMat, light, model);
-
-		mvMat = cam.vMat * IdentityMatrix();
-		nMat = Transpose(Inverse(mvMat));
-
-		GLErrorCheck(mvMatLoc = glGetUniformLocation(renderingProgram, "mvMat"));
-		GLErrorCheck(pMatLoc = glGetUniformLocation(renderingProgram, "pMat"));
-		GLErrorCheck(nMatLoc = glGetUniformLocation(renderingProgram, "nMat"));
-
-		GLErrorCheck(glUniformMatrix4fv(mvMatLoc, 1, GL_FALSE, mvMat.data()));
-		GLErrorCheck(glUniformMatrix4fv(pMatLoc, 1, GL_FALSE, cam.pMat.data()));
-		GLErrorCheck(glUniformMatrix4fv(nMatLoc, 1, GL_FALSE, nMat.data()));
 
 		// verts
 		GLErrorCheck(glBindBuffer(GL_ARRAY_BUFFER, vbo[0]));
@@ -207,7 +83,7 @@ namespace CC {
 		GLErrorCheck(glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal)));
 		GLErrorCheck(glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW));
 		GLErrorCheck(glEnableVertexAttribArray(1));
-		// texture coodinates
+		// texture coordinates
 		GLErrorCheck(glBindBuffer(GL_ARRAY_BUFFER, vbo[2]));
 		GLErrorCheck(glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord)));
 		GLErrorCheck(glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Vertex), model.vertices.data(), GL_STATIC_DRAW));
@@ -221,33 +97,6 @@ namespace CC {
 
 	void Renderer::SwapBuffers() {
 		glfwSwapBuffers(window.glfwWindow);
-	}
-
-	void Renderer::SetupLightData(Mat4& vMatrix, PositionalLight& light, Model& model) {
-		// convert lights position to view space
-		Vec3 lightPosViewSpace(vMatrix * Vec4(light.position, 1.0));
-
-		// get locations of light and material fields in shader
-		GLErrorCheck(L_GlobalAmbLoc	= glGetUniformLocation(renderingProgram, "globalAmbient"));
-		GLErrorCheck(L_AmbLoc		= glGetUniformLocation(renderingProgram, "light.ambient"));
-		GLErrorCheck(L_DiffLoc		= glGetUniformLocation(renderingProgram, "light.diffuse"));
-		GLErrorCheck(L_SpecLoc		= glGetUniformLocation(renderingProgram, "light.specular"));
-		GLErrorCheck(L_PosLoc		= glGetUniformLocation(renderingProgram, "light.position"));
-		GLErrorCheck(M_AmbLoc		= glGetUniformLocation(renderingProgram, "material.ambient"));
-		GLErrorCheck(M_DiffLoc		= glGetUniformLocation(renderingProgram, "material.diffuse"));
-		GLErrorCheck(M_SpecLoc		= glGetUniformLocation(renderingProgram, "material.specular"));
-		GLErrorCheck(M_ShiLoc		= glGetUniformLocation(renderingProgram, "material.shininess"));
-
-		// set the fields in the shader
-		GLErrorCheck(glProgramUniform4fv(renderingProgram, L_GlobalAmbLoc, 1, &globalAmbient[0]));
-		GLErrorCheck(glProgramUniform4fv(renderingProgram, L_AmbLoc, 1, &light.ambient[0]));
-		GLErrorCheck(glProgramUniform4fv(renderingProgram, L_DiffLoc, 1, &light.diffuse[0]));
-		GLErrorCheck(glProgramUniform4fv(renderingProgram, L_SpecLoc, 1, &light.specular[0]));
-		GLErrorCheck(glProgramUniform3fv(renderingProgram, L_PosLoc, 1, &light.position[0]));
-		GLErrorCheck(glProgramUniform4fv(renderingProgram, M_AmbLoc, 1, &model.material.ambient[0]));
-		GLErrorCheck(glProgramUniform4fv(renderingProgram, M_DiffLoc, 1, &model.material.diffuse[0]));
-		GLErrorCheck(glProgramUniform4fv(renderingProgram, M_SpecLoc, 1, &model.material.specular[0]));
-		GLErrorCheck(glProgramUniform1f(renderingProgram, M_ShiLoc, model.material.shininess));
 	}
 
 	unsigned int Renderer::LoadTexture(const char* textureImagePath) const {

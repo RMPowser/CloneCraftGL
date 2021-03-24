@@ -1,6 +1,5 @@
 # Blender v2.90.1 OBJ File: 'grassblock.blend'
 # www.blender.org
-mtllib Grass.mtl
 o Cube
 v 0.000000 1.000000 0.000000
 v 0.000000 0.000000 0.000000

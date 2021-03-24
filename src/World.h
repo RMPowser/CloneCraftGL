@@ -5,6 +5,7 @@
 #include "Camera.h"
 #include "Renderer.h"
 #include "TerrainGenerator.h"
+#include "ShaderProgram.h"
 #include <iostream>
 #include <unordered_map>
 
@@ -56,7 +57,7 @@ namespace CC {
 			const bool IsBlockOutOfBounds(const Vec3& blockPos) const;
 			const BlockType& GetBlock(const Vec3& blockPos) const;
 			void SetBlock(const BlockType& id, const Vec3& blockPos);
-			void Draw(Renderer& renderer, Camera& camera);
+			void Draw(Renderer& renderer, Camera& camera, ShaderProgram& shader);
 			void GenerateModel();
 			void GenerateTerrain(TerrainGenerator& terrainGenerator, long long& seed);
 
@@ -80,6 +81,7 @@ namespace CC {
 
 	// class World {
 	private:
+		ShaderProgram shaderBasic;
 		Camera& camera;
 		Renderer& renderer;
 		unsigned int textureAtlas;
@@ -97,7 +99,6 @@ namespace CC {
 		Vec2 camChunkCoordsOld;
 
 		std::unordered_map<Vec2, Chunk> chunkMap;
-		bool verticesAndIndicesUpdated = false;
 		bool forceVertexUpdate = false;
 
 		void UpdateLoadList();

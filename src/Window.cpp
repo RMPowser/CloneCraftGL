@@ -1,48 +1,46 @@
 #include "Window.h"
 
 void APIENTRY glDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
-	using namespace std;
-
-	cout << "--------------glDebugCallback-start--------------" << endl;
-	cout << "message: " << message << endl;
-	cout << "type: ";
+	std::cout << "--------------glDebugCallback-start--------------" << std::endl;
+	std::cout << "message: " << message << std::endl;
+	std::cout << "type: ";
 	switch (type) {
 		case GL_DEBUG_TYPE_ERROR:
-			cout << "ERROR";
+			std::cout << "ERROR";
 			break;
 		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-			cout << "DEPRECATED_BEHAVIOR";
+			std::cout << "DEPRECATED_BEHAVIOR";
 			break;
 		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-			cout << "UNDEFINED_BEHAVIOR";
+			std::cout << "UNDEFINED_BEHAVIOR";
 			break;
 		case GL_DEBUG_TYPE_PORTABILITY:
-			cout << "PORTABILITY";
+			std::cout << "PORTABILITY";
 			break;
 		case GL_DEBUG_TYPE_PERFORMANCE:
-			cout << "PERFORMANCE";
+			std::cout << "PERFORMANCE";
 			break;
 		case GL_DEBUG_TYPE_OTHER:
-			cout << "OTHER";
+			std::cout << "OTHER";
 			break;
 	}
-	cout << endl;
+	std::cout << std::endl;
 
-	cout << "id: " << id << endl;
-	cout << "severity: ";
+	std::cout << "id: " << id << std::endl;
+	std::cout << "severity: ";
 	switch (severity) {
 		case GL_DEBUG_SEVERITY_LOW:
-			cout << "LOW";
+			std::cout << "LOW";
 			break;
 		case GL_DEBUG_SEVERITY_MEDIUM:
-			cout << "MEDIUM";
+			std::cout << "MEDIUM";
 			break;
 		case GL_DEBUG_SEVERITY_HIGH:
-			cout << "HIGH";
+			std::cout << "HIGH";
 			break;
 	}
-	cout << endl;
-	cout << "--------------glDebugCallback-end----------------" << endl;
+	std::cout << std::endl;
+	std::cout << "--------------glDebugCallback-end----------------" << std::endl;
 }
 
 namespace CC {
@@ -53,6 +51,7 @@ namespace CC {
 
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glfwWindowHint(GLFW_RESIZABLE, true);
 
 #ifndef NDEBUG
@@ -82,7 +81,7 @@ namespace CC {
 		glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-		//glDebugMessageCallback(glDebugCallback, nullptr);
+		glDebugMessageCallback(glDebugCallback, nullptr);
 		GLuint bogus;
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, &bogus, true);
 	}

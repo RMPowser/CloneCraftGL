@@ -17,12 +17,12 @@ namespace CC {
 		Vec3 position;
 		Vec3 rotation; // for storing angles about each axis
 
-		Camera(const Vec3& spawnLocation);
+		Camera(const Vec3& spawnLocation, Window& window);
 
 		Vec4 GetForwardAxis();
 		Vec4 GetRightAxis();
 		Vec4 GetUpAxis();
-		void Update();
+		void Update(float aspectRatio);
 		inline const float GetFOV() const { return fovY; }
 		void SetFOV(float fovY, float aspectRatio);
 		void RecreateProjectionMatrix(float aspectRatio);

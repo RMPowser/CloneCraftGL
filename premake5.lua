@@ -3,16 +3,16 @@ workspace("CloneCraftGL")
 	platforms({"Win64", "Linux64"})
 	architecture("x64")
 	defines("UNICODE")
-	location("build")
+	location("./")
 	--flags("OmitDefaultLibrary")
 
 	includedirs({
 		"$(BOOST_SDK)",
-		"includes",
+		"dependencies/includes",
 	})
 	
 	libdirs({
-		"lib",
+		"dependencies/lib",
 		os.findlib("OpenGL"),
 	})
 	
@@ -27,24 +27,16 @@ workspace("CloneCraftGL")
 	language("C++")
 
 		postbuildcommands({
-			"{RMDIR} %{cfg.buildtarget.directory}textures",
-			"{MKDIR} %{cfg.buildtarget.directory}textures",
-			"{RMDIR} %{cfg.buildtarget.directory}shaders",
-			"{MKDIR} %{cfg.buildtarget.directory}shaders",
-			"{RMDIR} %{cfg.buildtarget.directory}models",
-			"{MKDIR} %{cfg.buildtarget.directory}models",
-			"{COPYDIR} ../textures %{prj.location}textures", -- for running with the debugger attached in VS
-			"{COPYDIR} ../textures %{cfg.buildtarget.directory}textures", -- for running without the debugger attached
-			"{COPYDIR} ../shaders %{prj.location}shaders", -- for running with the debugger attached in VS
-			"{COPYDIR} ../shaders %{cfg.buildtarget.directory}shaders", -- for running without the debugger attached
-			"{COPYDIR} ../models %{prj.location}models", -- for running with the debugger attached in VS
-			"{COPYDIR} ../models %{cfg.buildtarget.directory}models", -- for running without the debugger attached
+			"{RMDIR} %{cfg.buildtarget.directory}res",
+			"{MKDIR} %{cfg.buildtarget.directory}res",
+			"{COPYDIR} res %{cfg.buildtarget.directory}res",
 		})
 
 		files{
 			"src/*.*",
-			"textures/*.*",
-			"shaders/*.*",
+			"res/textures/*.*",
+			"res/shaders/*.*",
+			"res/models/blocks/*.*",
 		}
 
 		filter("platforms:Win64")

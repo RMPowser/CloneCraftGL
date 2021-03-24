@@ -9,6 +9,7 @@
 namespace CC {
 	class Window {
 		friend class Renderer;
+		friend class Camera;
 		// window
 	private:
 		GLFWwindow* glfwWindow;

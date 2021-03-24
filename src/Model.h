@@ -6,12 +6,11 @@
 #include "Material.h"
 #include "Vertex.h"
 
-using namespace std;
 
 namespace CC {
 	struct Model {
-		vector<Vertex> vertices;
-		vector<unsigned int> indices;
+		std::vector<Vertex> vertices;
+		std::vector<unsigned int> indices;
 		Material material;
 	};
 }

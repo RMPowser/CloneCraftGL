@@ -16,8 +16,6 @@ double GetDeltaTime() {
 }
 
 int main() {
-	
-
 	CC::Vec3 spawnLocation { 1000.0f, 160.0f, 1000.0f };
 
 	CC::Window window;
@@ -27,7 +25,7 @@ int main() {
 	printf(glVersionInfo.c_str());
 
 	CC::Renderer renderer(window);
-	CC::Camera camera(spawnLocation);
+	CC::Camera camera(spawnLocation, window);
 	CC::World world(camera, renderer);
 	CC::Player player(window, world, camera);
 
@@ -38,10 +36,10 @@ int main() {
 		// --- Update --- //
 		window.Update();
 		player.Update(dt);
-		player.PrintDebugInfo();
-		camera.Update();
+		//player.PrintDebugInfo();
+		camera.Update(window.GetAspectRatio());
 		world.Update();
-		world.PrintDebugInfo();
+		//world.PrintDebugInfo();
 
 		// ---  Draw  --- //
 		renderer.ClearScreen();

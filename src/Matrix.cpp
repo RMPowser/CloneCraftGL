@@ -23,8 +23,8 @@ namespace CC {
 			      x3, y3, z3, w3) {
 	}
 
-	float* Mat4::data() {
-		return glm::value_ptr(glmMat);
+	float* Mat4::data() const {
+		return (float*)glm::value_ptr(glmMat);
 	}
 
 	Vec4& Mat4::SideAxis() {

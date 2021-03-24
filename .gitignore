@@ -1,2 +1,9 @@
 [Bb]uild/
+[Oo]bj/
+[Bb]in/
+.vs/
+*.sln
+*.vcxproj
+*.filters
+*.user
 build.bat

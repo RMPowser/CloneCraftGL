@@ -1,5 +1,12 @@
 #include "Camera.h"
 
+bool resized = true;
+
+static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+	glViewport(0, 0, width, height);
+	resized = true;
+}
+
 namespace CC {
 	void Camera::MakeViewMatrix() {
 		Mat4 v = IdentityMatrix();
@@ -11,8 +18,9 @@ namespace CC {
 		vMat = v;
 	}
 	
-	Camera::Camera(const Vec3& spawnLocation) {
+	Camera::Camera(const Vec3& spawnLocation, Window& window) {
 		position = spawnLocation;
+		glfwSetWindowSizeCallback(window.glfwWindow, framebuffer_size_callback);
 	}
 
 	Vec4 Camera::GetForwardAxis() {
@@ -37,8 +45,12 @@ namespace CC {
 		return Cross(fwd, right);
 	}
 
-	void Camera::Update() {
+	void Camera::Update(float aspectRatio) {
 		MakeViewMatrix();
+		if (resized) {
+			RecreateProjectionMatrix(aspectRatio);
+			resized = false;
+		}
 	}
 
 	void Camera::SetFOV(float _fovY, float aspectRatio) {

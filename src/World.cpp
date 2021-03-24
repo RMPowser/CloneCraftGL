@@ -57,7 +57,7 @@ namespace CC {
 
 					auto blockId = GetBlock(blockPosition);
 
-					// dont render air
+					// don't render air
 					if (blockId == BlockType::Air) {
 						continue;
 					}
@@ -167,8 +167,17 @@ namespace CC {
 		isLoaded = true;
 	}
 
-	void World::Chunk::Draw(Renderer& renderer, Camera& camera) {
-		renderer.Draw(camera, model, mMat, vao);
+	void World::Chunk::Draw(Renderer& renderer, Camera& camera, ShaderProgram& shader) {
+		Mat4 mvMat = camera.vMat * IdentityMatrix();
+		Mat4 nMat = Transpose(Inverse(mvMat));
+
+		shader.Bind();
+
+		shader.SetUniformMatrix4fv("mvMat", mvMat);
+		shader.SetUniformMatrix4fv("pMat", camera.pMat);
+		shader.SetUniformMatrix4fv("nMat", nMat);
+
+		renderer.Draw(model, vao, shader);
 	}
 
 	void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long& seed) {
@@ -351,7 +360,10 @@ namespace CC {
 		return sqDistanceToChunk > sqRenderDistance;
 	}
 
-	World::World(Camera& camera, Renderer& renderer) : camera(camera), renderer(renderer) {
+	World::World(Camera& camera, Renderer& renderer) 
+		: camera(camera), 
+		  renderer(renderer), 
+		  shaderBasic("res/shaders/basic.shader") {
 		for (size_t i = 0; i < BlockType::NUM_TYPES; i++) {
 			blockDatabase[i].type = (BlockType)i;
 
@@ -361,20 +373,21 @@ namespace CC {
 					break;
 				case BlockType::Grass:
 					blockDatabase[i].collidable = true;
-					blockDatabase[i].model = renderer.LoadModel("models/blocks/Grass.obj");
+					blockDatabase[i].model = renderer.LoadModel("res/models/blocks/Grass.obj");
 					break;
 			}
 		}
 
-		textureAtlas = renderer.LoadTexture("textures/textureAtlas.png");
+		textureAtlas = renderer.LoadTexture("res/textures/textureAtlas.png");
+
 		UpdateLoadList();
 	}
 
 	void World::Update() {
 		UpdateLoadList();
-			UpdateVisibleList();
-			UpdateRenderableList();
-			UpdateUnloadList();
+		UpdateVisibleList();
+		UpdateRenderableList();
+		UpdateUnloadList();
 		// if the camera has crossed into a new chunk or a vertex update is being forced
 		if (camChunkCoordsOld != GetChunkCoords(camera.position) || forceVertexUpdate) {
 			camChunkCoordsOld = GetChunkCoords(camera.position);
@@ -387,7 +400,7 @@ namespace CC {
 		renderer.SetActiveTexture(textureAtlas);
 
 		for (size_t i = 0; i < renderableChunksList.size(); i++) {
-			GetChunk(renderableChunksList[i])->Draw(renderer, camera);
+			GetChunk(renderableChunksList[i])->Draw(renderer, camera, shaderBasic);
 		}
 	}
 

@@ -33,7 +33,7 @@ void Renderer::Draw(const VertexBufferArray& vba, const IndexBuffer& ib, const S
 	vba.Bind();
 	shader.Bind();
 	
-	GLErrorCheck(glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0));
+	GLErrorCheck(glDrawElements(GL_LINES, ib.GetCount(), GL_UNSIGNED_INT, 0));
 }
 
 void Renderer::SwapBuffers() {

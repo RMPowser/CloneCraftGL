@@ -95,7 +95,7 @@ private:
 	Camera& camera;
 	Renderer& renderer;
 	unsigned int renderDistance = 3;
-	long long seed = -1;
+	long long seed = 1;
 	int numChunksPerFrame = 3;
 
 	TerrainGenerator terrainGenerator;
@@ -107,7 +107,7 @@ private:
 	Vec2 camChunkCoordsOld;
 
 	std::unordered_map<Vec2, Chunk> chunkMap;
-	bool forceVertexUpdate = false;
+	bool forceVertexUpdate = true;
 
 	void UpdateLoadList();
 	void UpdateVisibleList();

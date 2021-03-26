@@ -253,56 +253,34 @@ void World::UpdateLoadList() {
 	Vec2 camChunkCoords = GetChunkCoords(camera.position);
 	Vec2 lowChunkXZ(camChunkCoords.x - (renderDistance + 1), camChunkCoords.z - (renderDistance + 1));
 	Vec2 highChunkXZ(camChunkCoords.x + (renderDistance + 1), camChunkCoords.z + (renderDistance + 1));
-	float sqRenderDistance = renderDistance * renderDistance;
+	float sqRenderDistance = (renderDistance) * (renderDistance);
 
 	// for each chunk around the player
+	Chunk* chunk;
 	Vec2 chunkPos;
 	for (float x = lowChunkXZ.x; x <= highChunkXZ.x; x++) {
 		for (float z = lowChunkXZ.z; z <= highChunkXZ.z; z++) {
 			chunkPos = { x, z };
 
-			if (!ChunkAlreadyExistsIn(chunkLoadList, chunkPos)) {
-				chunkLoadList.push_back(chunkPos);
-			}
-		}
-	}
+			if (ChunkAlreadyExistsIn(chunkLoadList, chunkPos) ||
+				ChunkAlreadyExistsIn(visibleChunksList, chunkPos) ||
+				ChunkAlreadyExistsIn(renderableChunksList, chunkPos) ||
+				ChunkAlreadyExistsIn(chunkUnloadList, chunkPos)) {
 
-	// initialize each chunk in the load list
-	Chunk* chunk;
-	for (int i = 0; i < chunkLoadList.size(); i++) {
-		chunk = GetChunk(chunkLoadList[i]);
-
-		if (!chunk->IsInitialized()) {
-			chunk->GenerateTerrain(terrainGenerator, seed);
-		}
-
-		if (!ChunkAlreadyExistsIn(visibleChunksList, chunkLoadList[i])) {
-			if (!ChunkOutsideRenderDistance(chunkLoadList[i], camChunkCoords, sqRenderDistance)) {
-				// add the chunk to the visible list because it is potentially visible
-				visibleChunksList.push_back(chunkLoadList[i]);
-
-				// remove the chunk from the load list since it is now loaded
-				chunkLoadList.erase(chunkLoadList.begin() + i);
-
-				// subtract 1 from the index since the container size changed
-				i--;
+				continue;
 			}
 			else {
-				chunkUnloadList.push_back(chunkLoadList[i]);
+				chunk = GetChunk(chunkPos);
 
-				// remove the chunk from the load list
-				chunkLoadList.erase(chunkLoadList.begin() + i);
+				if (!chunk->IsInitialized()) {
+					chunk->GenerateTerrain(terrainGenerator, seed);
+				}
 
-				// subtract 1 from the index since the container size changed
-				i--;
+				if (!ChunkOutsideRenderDistance(chunkPos, camChunkCoords, sqRenderDistance)) {
+					// add the chunk to the visible list because it is potentially visible
+					visibleChunksList.push_back(chunkPos);
+				}
 			}
-		}
-		else {
-			// remove it from the load list
-			chunkLoadList.erase(chunkLoadList.begin() + i);
-
-			// subtract 1 from the index since the container size changed
-			i--;
 		}
 	}
 }
@@ -311,24 +289,14 @@ void World::UpdateVisibleList() {
 	// TODO: frustum culling or something
 	// for each chunk in the potentially visible list
 	for (int i = 0; i < visibleChunksList.size(); i++) {
-		if (!ChunkAlreadyExistsIn(renderableChunksList, visibleChunksList[i])) {
-			// add the chunk to the renderable chunk list because it is able to be seen by the player
-			renderableChunksList.push_back(visibleChunksList[i]);
+		// add the chunk to the renderable chunk list because it is able to be seen by the player
+		renderableChunksList.push_back(visibleChunksList[i]);
 
-			// remove it from the visible list
-			visibleChunksList.erase(visibleChunksList.begin() + i);
+		// remove it from the visible list
+		visibleChunksList.erase(visibleChunksList.begin() + i);
 
-			// subtract 1 from the index since the container size changed
-			i--;
-		}
-		// if the chunk is already in the renderable list
-		else {
-			// remove it from the visible list
-			visibleChunksList.erase(visibleChunksList.begin() + i);
-
-			// subtract 1 from the index since the container size changed
-			i--;
-		}
+		// subtract 1 from the index since the container size changed
+		i--;
 	}
 }
 
@@ -340,14 +308,6 @@ void World::UpdateRenderableList() {
 	int numChunksLoaded = 0;
 	// for each chunk in the render list
 	for (int i = 0; i < renderableChunksList.size(); i++) {
-		if (numChunksLoaded != numChunksPerFrame) {
-			chunk = GetChunk(renderableChunksList[i]);
-			if (!chunk->IsLoaded()) {
-				chunk->GenerateModel();
-				numChunksLoaded++;
-			}
-		}
-
 		if (ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance)) {
 			// add the chunk to the unload list because its out of render distance
 			chunkUnloadList.push_back(renderableChunksList[i]);
@@ -358,6 +318,14 @@ void World::UpdateRenderableList() {
 			// subtract 1 from the index since the container size changed
 			i--;
 		}
+		else {
+			chunk = GetChunk(renderableChunksList[i]);
+			if (!chunk->IsLoaded()) {
+				chunk->GenerateModel();
+				numChunksLoaded++;
+			}
+		}
+
 	}
 }
 
@@ -417,13 +385,13 @@ World::World(Camera& camera, Renderer& renderer)
 
 void World::Update() {
 	UpdateLoadList();
-	UpdateVisibleList();
-	UpdateRenderableList();
-	UpdateUnloadList();
+	
 	// if the camera has crossed into a new chunk or a vertex update is being forced
 	if (camChunkCoordsOld != GetChunkCoords(camera.position) || forceVertexUpdate) {
 		camChunkCoordsOld = GetChunkCoords(camera.position);
-
+		UpdateVisibleList();
+		UpdateUnloadList();
+		UpdateRenderableList();
 		forceVertexUpdate = false;
 	}
 }

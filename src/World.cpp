@@ -1,5 +1,6 @@
 #include "World.h"
 #include "GLEW/glew.h"
+#include <string>
 
 World::Chunk::Layer::Layer() {
 	for (size_t i = 0; i < CHUNK_WIDTH; i++) {
@@ -12,6 +13,10 @@ World::Chunk::Layer::Layer() {
 World::Chunk::Chunk(const Vec2& position, World& world) : world(world) {
 	mMat.Position().x = position.x;
 	mMat.Position().z = position.z;
+}
+
+World::Chunk::~Chunk() {
+	
 }
 
 const bool World::Chunk::IsBlockOutOfBounds(const Vec3& blockPos) const {
@@ -42,23 +47,37 @@ void World::Chunk::SetBlock(const BlockType& id, const Vec3& blockPos) {
 }
 
 void World::Chunk::GenerateModel() {
-	vertices.clear();
-	indices.clear();
+	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
+		verticesLists[i].clear();
+		indicesLists[i].clear();
+	}
+
+	// preallocate
+	Vec3 blockPosition;
+	Chunk* otherChunk;
+	int blockId;
+	unsigned int offsets[(int)BlockType::NUM_TYPES];
+
+	// set bounds of how far out to render based on what chunk the player is in
+	Vec2 camChunkCoords = GetChunkCoords(world.camera.position);
+	Vec2 lowChunkXZ(camChunkCoords.x - world.renderDistance, camChunkCoords.z - world.renderDistance);
+	Vec2 highChunkXZ(camChunkCoords.x + world.renderDistance, camChunkCoords.z + world.renderDistance);
+
+	Vec2 chunkPos(mMat.Position().x, mMat.Position().z);
 
 	for (float y = 0; y < CHUNK_HEIGHT; y++) {
 		for (float x = 0; x < CHUNK_WIDTH; x++) {
 			for (float z = 0; z < CHUNK_WIDTH; z++) {
 
 				// infer the block position using its coordinates
-				Vec3 blockPosition(x, y, z);
+				blockPosition = { x, y, z };
 
-				auto blockId = GetBlock(blockPosition);
+				blockId = (int)GetBlock(blockPosition);
 
 				// don't render air
-				if (blockId == BlockType::Air) {
+				if (blockId == (int)BlockType::Air) {
 					continue;
 				}
-
 
 				auto getBlock = [&](float x, float y, float z) {
 					// this stops layer 0 from always being rendered
@@ -66,13 +85,7 @@ void World::Chunk::GenerateModel() {
 						return BlockType::Grass;
 					}
 
-					// set bounds of how far out to render based on what chunk the player is in
-					Vec2 camChunkCoords = GetChunkCoords(world.camera.position);
-					Vec2 lowChunkXZ(camChunkCoords.x - world.renderDistance, camChunkCoords.z - world.renderDistance);
-					Vec2 highChunkXZ(camChunkCoords.x + world.renderDistance, camChunkCoords.z + world.renderDistance);
-
-					Vec2 chunkPos(mMat.Position().x, mMat.Position().z);
-					Chunk* otherChunk = world.GetChunk(chunkPos);
+					otherChunk = world.GetChunk(chunkPos);
 
 					if ((x < 0 && chunkPos.x == lowChunkXZ.x) ||
 						(z < 0 && chunkPos.z == lowChunkXZ.z) ||
@@ -80,8 +93,6 @@ void World::Chunk::GenerateModel() {
 						(z >= CHUNK_WIDTH && chunkPos.z == highChunkXZ.z)) {
 						return BlockType::Grass;
 					}
-
-
 
 					if (x < 0 && z < 0) {
 						x += CHUNK_WIDTH;
@@ -138,7 +149,7 @@ void World::Chunk::GenerateModel() {
 					auto& inds = world.blockDatabase[blockId].indices;
 
 					// save the offset for the indices
-					auto offset = vertices.size();
+					offsets[blockId] = verticesLists[blockId].size();
 
 					// account for the block position and chunk position and store the new verts for later
 					for (int i = 0; i < verts.size(); i++) {
@@ -148,44 +159,50 @@ void World::Chunk::GenerateModel() {
 						v.position.z += blockPosition.z;
 						v.position.x += mMat.Position().x * CHUNK_WIDTH; // place vertices in world space coordinates
 						v.position.z += mMat.Position().z * CHUNK_WIDTH;
-						vertices.push_back(v);
+						verticesLists[blockId].push_back(v);
 					}
 
 					// account for the offset into vertices vector and store the indices for later
 					for (int i = 0; i < inds.size(); i++) {
-						unsigned int ind(inds[i] + offset);
-						indices.push_back(ind);
+						unsigned int ind(inds[i] + offsets[blockId]);
+						indicesLists[blockId].push_back(ind);
 					}
 				}
 			}
 		}
 	}
-	assert(vertices.size() > 0);
+
 	isLoaded = true;
 }
 
-void World::Chunk::Draw(Renderer& renderer, Camera& camera, ShaderProgram& shader, unsigned int textureAtlas) {
-	Mat4 mvMat = camera.vMat * IdentityMatrix();
-	Mat4 nMat = Transpose(Inverse(mvMat));
+void World::Chunk::Draw() {
+	// TODO: eventually fix this to actually do the proper calculation here
+	Mat4 mvMat = world.camera.vMat * IdentityMatrix();
 
-	VertexBufferArray vba;
-	VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
-	VertexBufferLayout layout;
-	layout.Push<float>(3, false);
-	layout.Push<float>(2, true);
+	// draw each type of block separately
+	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
+		VertexBufferArray va;
 
-	vba.AddBuffer(vb, layout);
+		VertexBuffer vb(verticesLists[i].data(), verticesLists[i].size() * sizeof(Vertex));
 
-	shader.Bind();
-	shader.SetUniformMatrix4fv("mvMat", mvMat);
-	shader.SetUniformMatrix4fv("pMat", camera.pMat);
-	shader.SetUniformMatrix4fv("nMat", nMat);
+		VertexBufferLayout layout;
 
-	IndexBuffer ib(indices.data(), indices.size());
+		layout.Push<float>(3, false);
+		layout.Push<float>(2, true);
 
-	renderer.SetActiveTexture(textureAtlas);
+		va.AddBuffer(vb, layout);
 
-	renderer.Draw(vba, ib, shader);
+		IndexBuffer ib(indicesLists[i].data(), indicesLists[i].size());
+		
+		ShaderProgram& shader = world.shaders[(int)ShaderType::Basic];
+		shader.Bind();
+		world.textures[i].Bind(0);
+		shader.SetUniform1i("_texture", 0);
+		shader.SetUniformMatrix4fv("mvMat", mvMat);
+		shader.SetUniformMatrix4fv("pMat", world.camera.pMat);
+
+		world.renderer.Draw(va, ib, shader);
+	}
 }
 
 void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long& seed) {
@@ -196,9 +213,19 @@ void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long
 	for (int x = 0; x < CHUNK_WIDTH; x++) {
 		for (int z = 0; z < CHUNK_WIDTH; z++) {
 			int y = image->GetValue(x, z).red;
-			// set every block below the surface as well
-			while (y >= 0) {
+			int r = rand() % 4;
+			if (r == 1) {
+				SetBlock(BlockType::Dirt, Vec3(x, y, z));
+			}
+			else {
 				SetBlock(BlockType::Grass, Vec3(x, y, z));
+			}
+			
+
+			// set every block below the surface as well
+			y--;
+			while (y >= 0) {
+				SetBlock(BlockType::Dirt, Vec3(x, y, z));
 
 				y--;
 			}
@@ -369,25 +396,21 @@ bool World::ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChun
 }
 
 World::World(Camera& camera, Renderer& renderer)
-	: camera(camera),
-	renderer(renderer),
-	shaderBasic("res/shaders/basic.shader") {
-	for (size_t i = 0; i < BlockType::NUM_TYPES; i++) {
-		blockDatabase[i].type = (BlockType)i;
+	: camera(camera), renderer(renderer) {
 
-		switch (blockDatabase[i].type) {
-			case BlockType::Air:
-				blockDatabase[i].collidable = false;
-				break;
-			case BlockType::Grass:
-				blockDatabase[i].collidable = true;
-				renderer.LoadModel("res/models/blocks/Grass.obj", blockDatabase[i].vertices, blockDatabase[i].indices);
-				break;
-		}
-	}
+	// init shaders
+	shaders[(int)ShaderType::Basic].Load("res/shaders/basic.shader");
 
-	textureAtlas = renderer.LoadTexture("res/textures/textureAtlas.png");
-	renderer.SetActiveTexture(textureAtlas);
+	// init block database
+	blockDatabase[(int)BlockType::Air].isCollidable = false;
+	blockDatabase[(int)BlockType::Grass].isCollidable = true;
+	renderer.LoadModel("res/models/blocks/BasicBlock.obj", blockDatabase[(int)BlockType::Grass].vertices, blockDatabase[(int)BlockType::Grass].indices);
+	blockDatabase[(int)BlockType::Dirt].isCollidable = true;
+	renderer.LoadModel("res/models/blocks/BasicBlock.obj", blockDatabase[(int)BlockType::Dirt].vertices, blockDatabase[(int)BlockType::Dirt].indices);
+
+	// init textures
+	textures[(int)BlockType::Grass].Load("res/textures/blocks/Grass.png");
+	textures[(int)BlockType::Dirt].Load("res/textures/blocks/Dirt.png");
 
 	UpdateLoadList();
 }
@@ -406,10 +429,8 @@ void World::Update() {
 }
 
 void World::Draw() {
-	renderer.SetActiveTexture(textureAtlas);
-
 	for (size_t i = 0; i < renderableChunksList.size(); i++) {
-		GetChunk(renderableChunksList[i])->Draw(renderer, camera, shaderBasic, textureAtlas);
+		GetChunk(renderableChunksList[i])->Draw();
 	}
 }
 

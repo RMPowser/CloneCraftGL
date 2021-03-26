@@ -32,21 +32,23 @@ int main() {
 	double dt = 0;
 
 	while (!window.ShouldClose()) {
-		dt = GetDeltaTime();
-		// --- Update --- //
-		window.Update();
-		player.Update(dt);
-		//player.PrintDebugInfo();
-		camera.Update(window.GetAspectRatio());
-		world.Update();
-		//world.PrintDebugInfo();
+			dt = GetDeltaTime();
+			window.Update();
 
-		// ---  Draw  --- //
-		renderer.ClearScreen();
+		if (window.IsFocus()) {
+			// --- Update --- //
+			player.Update(dt);
+			player.PrintDebugInfo(dt);
+			camera.Update(window.GetAspectRatio());
+			world.Update();
 
-		world.Draw();
+			// ---  Draw  --- //
+			renderer.ClearScreen();
 
-		renderer.SwapBuffers();
+			world.Draw();
+
+			renderer.SwapBuffers();
+		}
 	}
 
 	return 0;

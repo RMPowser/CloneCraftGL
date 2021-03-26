@@ -188,7 +188,7 @@ void Player::Collide(const Vec4& vel) {
 			for (int z = zMin; z < zMax; z++) {
 				auto block = world.GetBlock(Vec4(x, y, z, 0));
 
-				if (world.GetBlockDataFor(block).collidable) {
+				if (world.GetBlockDataFor(block).isCollidable) {
 					if (vel.y > 0) {
 						mMat.Position().y = y - height;
 						fallingSpeed = 0;
@@ -239,20 +239,22 @@ bool Player::WouldCollide(Vec4 blockPosition) {
 	return false;
 }
 
-void Player::PrintDebugInfo() {
+void Player::PrintDebugInfo(float dt) {
 	HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
 	COORD position = { 0, 1 };
 	SetConsoleCursorPosition(hStdout, position);
 
 	printf(
-	R"(Player Info										
+R"(Player Info										
 position:		x: %2f		y: %2f		z: %2f		
 camera:			x: %2f		y: %2f		z: %2f		
 rotationCam: 	x: %2f		y: %2f		z: %2f		
 FOV: %2f											
+FPS: %2f											
 
 		)", mMat.Position().x, mMat.Position().y, mMat.Position().z,
 		camera.position.x, camera.position.y, camera.position.z,
 		camera.rotation.x, camera.rotation.y, camera.rotation.z,
-		camera.GetFOV());
+		camera.GetFOV(),
+		1 / dt);
 }

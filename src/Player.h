@@ -45,5 +45,5 @@ public:
 	void Collide(const Vec4& vel);
 	bool WouldCollide(Vec4 blockPosition);
 
-	void Player::PrintDebugInfo();
+	void Player::PrintDebugInfo(float dt);
 };

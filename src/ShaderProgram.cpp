@@ -7,10 +7,8 @@
 #include <sstream>
 
 
-ShaderProgram::ShaderProgram(const std::string& filePath)
-	: filePath(filePath) {
-	ShaderProgramSource source = ParseShader(filePath);
-	id = CreateShaderProgram(source.vertexSource, source.fragmentSource);
+ShaderProgram::ShaderProgram() {
+	GLErrorCheck(id = glCreateProgram());
 }
 
 ShaderProgram::~ShaderProgram() {
@@ -23,6 +21,17 @@ void ShaderProgram::Bind() const {
 
 void ShaderProgram::UnBind() const {
 	GLErrorCheck(glUseProgram(0));
+}
+
+void ShaderProgram::Load(const std::string& _filePath) {
+	filePath = _filePath;
+	ShaderProgramSource source = ParseShader(_filePath);
+	CreateShaderProgram(source.vertexSource, source.fragmentSource);
+	isValid = true;
+}
+
+void ShaderProgram::SetUniform1i(const std::string& name, int value) {
+	GLErrorCheck(glUniform1i(GetUniformLocation(name), value));
 }
 
 void ShaderProgram::SetUniformMatrix4fv(const std::string& name, const Mat4& m) {
@@ -73,39 +82,36 @@ ShaderProgram::ShaderProgramSource ShaderProgram::ParseShader(const std::string 
 }
 
 unsigned int ShaderProgram::CompileShader(unsigned int type, const std::string& source) const {
-	GLErrorCheck(unsigned int id = glCreateShader(type));
+	GLErrorCheck(unsigned int shaderID = glCreateShader(type));
 	const char* src = source.c_str();
-	GLErrorCheck(glShaderSource(id, 1, &src, nullptr));
-	GLErrorCheck(glCompileShader(id));
+	GLErrorCheck(glShaderSource(shaderID, 1, &src, nullptr));
+	GLErrorCheck(glCompileShader(shaderID));
 
 	int result;
-	GLErrorCheck(glGetShaderiv(id, GL_COMPILE_STATUS, &result));
+	GLErrorCheck(glGetShaderiv(shaderID, GL_COMPILE_STATUS, &result));
 	if (result == false) {
 		int length;
-		GLErrorCheck(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
+		GLErrorCheck(glGetShaderiv(shaderID, GL_INFO_LOG_LENGTH, &length));
 		char* message = (char*)alloca(length * sizeof(char));
-		GLErrorCheck(glGetShaderInfoLog(id, length, &length, message));
+		GLErrorCheck(glGetShaderInfoLog(shaderID, length, &length, message));
 		std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader!" << std::endl;
 		std::cout << message << std::endl;
-		GLErrorCheck(glDeleteShader(id));
+		GLErrorCheck(glDeleteShader(shaderID));
 		return 0;
 	}
 
-	return id;
+	return shaderID;
 }
 
-unsigned int ShaderProgram::CreateShaderProgram(const std::string& vShader, const std::string& fShader) const {
-	GLErrorCheck(unsigned int program = glCreateProgram());
+void ShaderProgram::CreateShaderProgram(const std::string& vShader, const std::string& fShader) const {
 	unsigned int vs = CompileShader(GL_VERTEX_SHADER, vShader);
 	unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fShader);
 
-	GLErrorCheck(glAttachShader(program, vs));
-	GLErrorCheck(glAttachShader(program, fs));
-	GLErrorCheck(glLinkProgram(program));
-	GLErrorCheck(glValidateProgram(program));
+	GLErrorCheck(glAttachShader(id, vs));
+	GLErrorCheck(glAttachShader(id, fs));
+	GLErrorCheck(glLinkProgram(id));
+	GLErrorCheck(glValidateProgram(id));
 
 	GLErrorCheck(glDeleteShader(vs));
 	GLErrorCheck(glDeleteShader(fs));
-
-	return program;
 }

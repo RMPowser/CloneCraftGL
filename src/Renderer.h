@@ -14,9 +14,7 @@ public:
 	Renderer(Window& window);
 	void SetClearColor(float r, float g, float b, float a);
 	void ClearScreen();
-	void SetActiveTexture(const unsigned int& texture);
 	void Draw(const VertexBufferArray& vb, const IndexBuffer& ib, const ShaderProgram& shader);
 	void SwapBuffers();
-	unsigned int LoadTexture(const char* textureImagePath) const;
 	void LoadModel(const char* modelFilePath, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const;
 };

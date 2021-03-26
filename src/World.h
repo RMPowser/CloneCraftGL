@@ -5,15 +5,23 @@
 #include "Renderer.h"
 #include "TerrainGenerator.h"
 #include "ShaderProgram.h"
+#include "Texture.h"
 #include <iostream>
 #include <unordered_map>
 
 #define CHUNK_WIDTH 16
 #define CHUNK_HEIGHT 256
 
-enum BlockType : unsigned char {
-	Air = 0,
-	Grass = 1,
+enum class BlockType : unsigned char {
+	Air		= 0,
+	Grass	= 1,
+	Dirt	= 2,
+
+	NUM_TYPES // always leave this as the last enumeration
+};
+
+enum class ShaderType : unsigned char {
+	Basic = 0,
 
 	NUM_TYPES // always leave this as the last enumeration
 };
@@ -39,23 +47,25 @@ private:
 
 	// class Chunk {
 	private:
+		World& world;
 		Layer layers[CHUNK_HEIGHT];
 		Mat4 mMat;
 
+		// initialize an array of vectors. one vector for each block type.
+		std::vector<Vertex> verticesLists[(int)BlockType::NUM_TYPES];
+		std::vector<unsigned int> indicesLists[(int)BlockType::NUM_TYPES];
+		
 		bool isInitialized = false;
 		bool isLoaded = false;
 
 	public:
-		World& world;
-		std::vector<Vertex> vertices;
-		std::vector<unsigned int> indices;
-
 		Chunk(const Vec2& position, World& world);
+		~Chunk();
 
 		const bool IsBlockOutOfBounds(const Vec3& blockPos) const;
 		const BlockType& GetBlock(const Vec3& blockPos) const;
 		void SetBlock(const BlockType& id, const Vec3& blockPos);
-		void Draw(Renderer& renderer, Camera& camera, ShaderProgram& shader, unsigned int textureAtlas);
+		void Draw();
 		void GenerateModel();
 		void GenerateTerrain(TerrainGenerator& terrainGenerator, long long& seed);
 
@@ -68,8 +78,7 @@ private:
 
 
 	struct BlockData {
-		BlockType type = BlockType::Air;
-		bool collidable = false;
+		bool isCollidable = false;
 		std::vector<Vertex> vertices;
 		std::vector<unsigned int> indices;
 	};
@@ -80,11 +89,11 @@ private:
 
 // class World {
 private:
-	ShaderProgram shaderBasic;
-	unsigned int textureAtlas;
+	ShaderProgram shaders[(int)ShaderType::NUM_TYPES];
+	Texture textures[(int)BlockType::NUM_TYPES]; // one texture for each block
+	BlockData blockDatabase[(int)BlockType::NUM_TYPES];
 	Camera& camera;
 	Renderer& renderer;
-	BlockData blockDatabase[BlockType::NUM_TYPES];
 	unsigned int renderDistance = 3;
 	long long seed = -1;
 	int numChunksPerFrame = 3;
@@ -117,7 +126,6 @@ public:
 	Chunk* GetChunk(const Vec2& chunkPos);
 
 	inline const BlockData& GetBlockDataFor(BlockType id) const { return blockDatabase[(unsigned int)id]; };
-	inline const unsigned int GetTextureAtlas() const { return textureAtlas; }
 
 	static Vec3 GetBlockCoords(Vec3 worldCoords) { return Vec3((int)worldCoords.x % CHUNK_WIDTH, worldCoords.y, (int)worldCoords.z % CHUNK_WIDTH); }
 	static Vec2 GetChunkCoords(Vec3 worldCoords) { return Vec2((int)worldCoords.x / CHUNK_WIDTH, (int)worldCoords.z / CHUNK_WIDTH); }

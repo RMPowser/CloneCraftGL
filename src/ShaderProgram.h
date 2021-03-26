@@ -18,19 +18,24 @@ private:
 	};
 
 public:
-	ShaderProgram(const std::string& filePath);
+	bool isValid = false;
+
+	ShaderProgram();
 	~ShaderProgram();
 
 	void Bind() const;
 	void UnBind() const;
 
+	void Load(const std::string& filePath);
+
 	// set uniforms
+	void SetUniform1i(const std::string& name, int value);
 	void SetUniformMatrix4fv(const std::string& name, const Mat4& m);
 
 private:
 	ShaderProgramSource ParseShader(const std::string filePath) const;
 	unsigned int CompileShader(unsigned int type, const std::string& source) const;
-	unsigned int CreateShaderProgram(const std::string& vShader, const std::string& fShader) const;
+	void CreateShaderProgram(const std::string& vShader, const std::string& fShader) const;
 
 	int GetUniformLocation(const std::string& name);
 };

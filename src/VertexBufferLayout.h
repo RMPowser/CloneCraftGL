@@ -28,7 +28,7 @@ private:
 	unsigned int stride = 0;
 public:
 	VertexBufferLayout() {
-
+	
 	}
 
 	template<typename T>

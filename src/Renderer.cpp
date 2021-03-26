@@ -1,9 +1,7 @@
 #include "Renderer.h"
 #include "OpenGL.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "stb/stb_image.h"
 #include "TinyObjLoader/tiny_obj_loader.h"
 
 #include <fstream>
@@ -16,6 +14,9 @@ Renderer::Renderer(Window& window) : window(window) {
 	GLErrorCheck(glFrontFace(GL_CCW));
 	GLErrorCheck(glEnable(GL_DEPTH_TEST));
 	GLErrorCheck(glDepthFunc(GL_LEQUAL));
+	GLErrorCheck(glEnable(GL_BLEND));
+	GLErrorCheck(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+
 	SetClearColor((70.0f / 255), (160.0f / 255), (255.0f / 255), (255.0f / 255));
 }
 
@@ -28,56 +29,15 @@ void Renderer::ClearScreen() {
 	GLErrorCheck(glClear(GL_COLOR_BUFFER_BIT));
 }
 
-void Renderer::SetActiveTexture(const unsigned int& texture) {
-	GLErrorCheck(glActiveTexture(GL_TEXTURE0));
-	GLErrorCheck(glBindTexture(GL_TEXTURE_2D, texture));
-}
-
 void Renderer::Draw(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader) {
 	vba.Bind();
-	ib.Bind();
 	shader.Bind();
 	
-	GLErrorCheck(glDrawElements(GL_LINES, ib.GetCount(), GL_UNSIGNED_INT, 0));
+	GLErrorCheck(glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0));
 }
 
 void Renderer::SwapBuffers() {
 	glfwSwapBuffers(window.glfwWindow);
-}
-
-unsigned int Renderer::LoadTexture(const char* textureImagePath) const {
-	unsigned int texture;
-
-	GLErrorCheck(glGenTextures(1, &texture));
-	GLErrorCheck(glBindTexture(GL_TEXTURE_2D, texture));
-
-	GLErrorCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
-	GLErrorCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
-	GLErrorCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST));
-	GLErrorCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-
-	int width, height, numChannels;
-	stbi_set_flip_vertically_on_load(true);
-	unsigned char* rawImgData = stbi_load(textureImagePath, &width, &height, &numChannels, 4);
-
-	if (rawImgData) {
-		GLErrorCheck(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rawImgData));
-		GLErrorCheck(glGenerateMipmap(GL_TEXTURE_2D));
-
-		// if also anisotropic filtering
-		if (("GL_EXT_texture_filter_anisotropic")) {
-			float anisoSetting = 0.0f;
-			GLErrorCheck(glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoSetting));
-			GLErrorCheck(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisoSetting));
-		}
-	}
-	else {
-		throw std::exception("Failed to load texture!");
-	}
-
-	stbi_image_free(rawImgData);
-
-	return texture;
 }
 
 void Renderer::LoadModel(const char* modelFilePath, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const {

@@ -1,8 +1,7 @@
-#ifndef GATEWARE_HPP
-#define GATEWARE_HPP
+#pragma once
 
 #ifndef _WIN32
-#define _WIN32
+	#define _WIN32
 #endif
 
 #define GATEWARE_ENABLE_AUDIO
@@ -15,5 +14,3 @@
 #define GATEWARE_DISABLE_MATH2D
 #define GATEWARE_ENABLE_INPUT
 #include "Gateware/Gateware.h"
-
-#endif // GATEWARE_HPP

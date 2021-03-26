@@ -16,18 +16,18 @@ double GetDeltaTime() {
 }
 
 int main() {
-	CC::Vec3 spawnLocation { 1000.0f, 160.0f, 1000.0f };
+	Vec3 spawnLocation { 1000.0f, 160.0f, 1000.0f };
 
-	CC::Window window;
+	Window window;
 
 	std::string glVersion = (const char*)glGetString(GL_VERSION);
 	std::string glVersionInfo = "OpenGL Driver Version " + glVersion + "\n";
 	printf(glVersionInfo.c_str());
 
-	CC::Renderer renderer(window);
-	CC::Camera camera(spawnLocation, window);
-	CC::World world(camera, renderer);
-	CC::Player player(window, world, camera);
+	Renderer renderer(window);
+	Camera camera(spawnLocation, window);
+	World world(camera, renderer);
+	Player player(window, world, camera);
 
 	double dt = 0;
 

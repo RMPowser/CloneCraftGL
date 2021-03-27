@@ -26,7 +26,7 @@ void ShaderProgram::UnBind() const {
 void ShaderProgram::Load(const std::string& _filePath) {
 	filePath = _filePath;
 	ShaderProgramSource source = ParseShader(_filePath);
-	CreateShaderProgram(source.vertexSource, source.fragmentSource);
+	CreateShaderProgram(source.vertexSource, source.geometrySource, source.fragmentSource);
 	isValid = true;
 }
 
@@ -56,19 +56,22 @@ ShaderProgram::ShaderProgramSource ShaderProgram::ParseShader(const std::string 
 	enum class ShaderType {
 		NONE = -1,
 		VERTEX = 0,
-		FRAGMENT = 1
+		GEOMETRY = 1,
+		FRAGMENT = 2
 	};
 
 	std::ifstream fileStream(filePath);
 
 	std::string line;
-	std::stringstream ss[2];
+	std::stringstream ss[3];
 	ShaderType type = ShaderType::NONE;
 
 	while (getline(fileStream, line)) {
 		if (line.find("#shader") != std::string::npos) {
 			if (line.find("vertex") != std::string::npos)
 				type = ShaderType::VERTEX;
+			else if (line.find("geometry") != std::string::npos)
+				type = ShaderType::GEOMETRY;
 			else if (line.find("fragment") != std::string::npos)
 				type = ShaderType::FRAGMENT;
 		}
@@ -78,7 +81,7 @@ ShaderProgram::ShaderProgramSource ShaderProgram::ParseShader(const std::string 
 	}
 
 	fileStream.close();
-	return { ss[0].str(), ss[1].str() };
+	return { ss[0].str(), ss[1].str(), ss[2].str() };
 }
 
 unsigned int ShaderProgram::CompileShader(unsigned int type, const std::string& source) const {
@@ -90,12 +93,23 @@ unsigned int ShaderProgram::CompileShader(unsigned int type, const std::string& 
 	int result;
 	GLErrorCheck(glGetShaderiv(shaderID, GL_COMPILE_STATUS, &result));
 	if (result == false) {
-		int length;
-		GLErrorCheck(glGetShaderiv(shaderID, GL_INFO_LOG_LENGTH, &length));
-		char* message = (char*)alloca(length * sizeof(char));
-		GLErrorCheck(glGetShaderInfoLog(shaderID, length, &length, message));
-		std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader!" << std::endl;
-		std::cout << message << std::endl;
+		std::string shaderType;
+		switch (type) {
+			case GL_VERTEX_SHADER:
+				shaderType = "vertex";
+				break;
+			case GL_GEOMETRY_SHADER:
+				shaderType = "geometry";
+				break;
+			case GL_FRAGMENT_SHADER:
+				shaderType = "fragment";
+				break;
+		}
+
+		std::cout << "Failed to compile " << shaderType << " shader!" << std::endl;
+		
+		PrintShaderLog(shaderID);
+
 		GLErrorCheck(glDeleteShader(shaderID));
 		return 0;
 	}
@@ -103,15 +117,59 @@ unsigned int ShaderProgram::CompileShader(unsigned int type, const std::string& 
 	return shaderID;
 }
 
-void ShaderProgram::CreateShaderProgram(const std::string& vShader, const std::string& fShader) const {
+void ShaderProgram::CreateShaderProgram(const std::string& vShader, const std::string& gShader, const std::string& fShader) const {
 	unsigned int vs = CompileShader(GL_VERTEX_SHADER, vShader);
-	unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fShader);
-
 	GLErrorCheck(glAttachShader(id, vs));
+
+	unsigned int gs = 0;
+	if (gShader != "") {
+		gs = CompileShader(GL_GEOMETRY_SHADER, gShader);
+		GLErrorCheck(glAttachShader(id, gs));
+	}
+
+	unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fShader);
 	GLErrorCheck(glAttachShader(id, fs));
+
+
+
 	GLErrorCheck(glLinkProgram(id));
+	int result;
+	GLErrorCheck(glGetProgramiv(id, GL_LINK_STATUS, &result));
+	if (result != 1) {
+		std::cout << "shader linking failed!" << std::endl;
+		PrintProgramLog();
+		GLErrorCheck(glDeleteProgram(id));
+	}
+
 	GLErrorCheck(glValidateProgram(id));
 
 	GLErrorCheck(glDeleteShader(vs));
+	if (gs != 0) { GLErrorCheck(glDeleteShader(gs)); }
 	GLErrorCheck(glDeleteShader(fs));
+}
+
+void ShaderProgram::PrintShaderLog(unsigned int id) const {
+	int len = 0;
+	int chWrittn = 0;
+	char* log;
+	glGetShaderiv(id, GL_INFO_LOG_LENGTH, &len);
+	if (len > 0) {
+		log = (char*)malloc(len);
+		glGetShaderInfoLog(id, len, &chWrittn, log);
+		std::cout << "Shader Info Log: " << log << std::endl;
+		free(log);
+	}
+}
+
+void ShaderProgram::PrintProgramLog() const {
+	int len = 0;
+	int chWrittn = 0;
+	char* log;
+	glGetProgramiv(id, GL_INFO_LOG_LENGTH, &len);
+	if (len > 0) {
+		log = (char*)malloc(len);
+		glGetProgramInfoLog(id, len, &chWrittn, log);
+		std::cout << "Program Info Log: " << log << std::endl;
+		free(log);
+	}
 }

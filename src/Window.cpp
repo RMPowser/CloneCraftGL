@@ -82,8 +82,6 @@ Window::Window() {
 
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	//glDebugMessageCallback(glDebugCallback, nullptr);
-	GLuint bogus;
-	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, &bogus, true);
 }
 
 Window::~Window() {

@@ -31,9 +31,17 @@ void Renderer::ClearScreen() {
 
 void Renderer::Draw(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader) {
 	vba.Bind();
+	ib.Bind();
 	shader.Bind();
 	
-	GLErrorCheck(glDrawElements(GL_LINES, ib.GetCount(), GL_UNSIGNED_INT, 0));
+	GLErrorCheck(glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0));
+}
+
+void Renderer::DrawFromPoints(const VertexBufferArray& vba, const ShaderProgram& shader, unsigned int count) {
+	vba.Bind();
+	shader.Bind();
+
+	GLErrorCheck(glDrawArrays(GL_POINTS, 0, count));
 }
 
 void Renderer::SwapBuffers() {
@@ -96,7 +104,7 @@ void Renderer::LoadModel(const char* modelFilePath, std::vector<Vertex>& vertice
 				}
 
 				indices.push_back(vertices.size());
-				vertices.push_back({ {vx, vy, vz}, {tx, ty} });
+				vertices.push_back({ {vx, vy, vz} });
 			}
 			index_offset += fv;
 		}

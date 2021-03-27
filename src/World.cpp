@@ -210,24 +210,21 @@ void World::UpdateLoadList() {
 		for (float z = lowChunkXZ.z; z <= highChunkXZ.z; z++) {
 			chunkPos = { x, z };
 
-			if (ChunkAlreadyExistsIn(chunkLoadList, chunkPos) ||
+			if (ChunkAlreadyExistsIn(renderableChunksList, chunkPos) ||
 				ChunkAlreadyExistsIn(visibleChunksList, chunkPos) ||
-				ChunkAlreadyExistsIn(renderableChunksList, chunkPos) ||
 				ChunkAlreadyExistsIn(chunkUnloadList, chunkPos)) {
 
 				continue;
 			}
-			else {
+			else if (!ChunkOutsideRenderDistance(chunkPos, camChunkCoords, sqRenderDistance)) {
 				chunk = GetChunk(chunkPos);
 
 				if (!chunk->IsInitialized()) {
 					chunk->GenerateTerrain(terrainGenerator, seed);
 				}
 
-				if (!ChunkOutsideRenderDistance(chunkPos, camChunkCoords, sqRenderDistance)) {
-					// add the chunk to the visible list because it is potentially visible
-					visibleChunksList.push_back(chunkPos);
-				}
+				// add the chunk to the visible list because it is potentially visible
+				visibleChunksList.push_back(chunkPos);
 			}
 		}
 	}
@@ -354,7 +351,10 @@ const BlockType& World::GetBlock(const Vec3& worldCoords) {
 	auto blockPosition = GetBlockCoords(worldCoords);
 	auto chunkPosition = GetChunkCoords(worldCoords);
 
-	return GetChunk(chunkPosition)->GetBlock(blockPosition);
+	Chunk* chunk = GetChunk(chunkPosition);
+	if (!chunk->IsInitialized()) { chunk->GenerateTerrain(terrainGenerator, seed); }
+
+	return chunk->GetBlock(blockPosition);
 }
 
 void World::SetBlock(const BlockType& id, const Vec3& worldCoords) {

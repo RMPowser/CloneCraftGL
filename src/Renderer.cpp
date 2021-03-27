@@ -40,7 +40,7 @@ void Renderer::DrawIndexedInstanced(const VertexBufferArray& vba, const IndexBuf
 	vba.Bind();
 	shader.Bind();
 
-	glDrawElementsInstanced(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0, instanceCount);
+	glDrawElementsInstanced(GL_LINES, ib.GetCount(), GL_UNSIGNED_INT, 0, instanceCount);
 }
 
 void Renderer::SwapBuffers() {

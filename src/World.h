@@ -21,7 +21,7 @@ enum class BlockType : unsigned char {
 };
 
 enum class ShaderType : unsigned char {
-	Basic = 0,
+	BasicBlockGeometry = 0,
 
 	NUM_TYPES // always leave this as the last enumeration
 };
@@ -53,7 +53,6 @@ private:
 
 		// initialize an array of vectors. one vector for each block type.
 		std::vector<Vertex> verticesLists[(int)BlockType::NUM_TYPES];
-		std::vector<unsigned int> indicesLists[(int)BlockType::NUM_TYPES];
 		
 		bool isInitialized = false;
 		bool isLoaded = false;
@@ -79,8 +78,6 @@ private:
 
 	struct BlockData {
 		bool isCollidable = false;
-		std::vector<Vertex> vertices;
-		std::vector<unsigned int> indices;
 	};
 
 
@@ -121,8 +118,8 @@ public:
 
 	void Update();
 	void Draw();
-	const BlockType& GetBlock(const Vec4& worldCoords);
-	void SetBlock(const BlockType& id, const Vec4& blockPos);
+	const BlockType& GetBlock(const Vec3& worldCoords);
+	void SetBlock(const BlockType& id, const Vec3& worldCoords);
 	Chunk* GetChunk(const Vec2& chunkPos);
 
 	inline const BlockData& GetBlockDataFor(BlockType id) const { return blockDatabase[(unsigned int)id]; };

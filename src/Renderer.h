@@ -15,6 +15,7 @@ public:
 	void SetClearColor(float r, float g, float b, float a);
 	void ClearScreen();
 	void Draw(const VertexBufferArray& vb, const IndexBuffer& ib, const ShaderProgram& shader);
+	void DrawFromPoints(const VertexBufferArray& vba, const ShaderProgram& shader, unsigned int count);
 	void SwapBuffers();
 	void LoadModel(const char* modelFilePath, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) const;
 };

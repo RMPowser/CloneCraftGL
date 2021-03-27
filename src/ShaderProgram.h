@@ -8,12 +8,13 @@
 class ShaderProgram {
 private:
 	std::string filePath;	// for debug purposes only
-	int id;			// the id for this specific shader program
+	int id;					// the id for this specific shader program
 	// caching for uniforms
 	std::unordered_map<std::string, int> uniformLocationCache;
 
 	struct ShaderProgramSource {
 		std::string vertexSource;
+		std::string geometrySource;
 		std::string fragmentSource;
 	};
 
@@ -35,7 +36,9 @@ public:
 private:
 	ShaderProgramSource ParseShader(const std::string filePath) const;
 	unsigned int CompileShader(unsigned int type, const std::string& source) const;
-	void CreateShaderProgram(const std::string& vShader, const std::string& fShader) const;
+	void CreateShaderProgram(const std::string& vShader, const std::string& gShader, const std::string& fShader) const;
+	void PrintShaderLog(unsigned int id) const;
+	void PrintProgramLog() const;
 
 	int GetUniformLocation(const std::string& name);
 };

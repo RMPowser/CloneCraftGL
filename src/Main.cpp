@@ -38,10 +38,10 @@ int main() {
 		if (window.IsFocus()) {
 			// --- Update --- //
 			player.Update(dt);
-			player.PrintDebugInfo(dt);
+			//player.PrintDebugInfo(dt);
 			camera.Update(window.GetAspectRatio());
 			world.Update();
-
+			//world.PrintDebugInfo();
 			// ---  Draw  --- //
 			renderer.ClearScreen();
 

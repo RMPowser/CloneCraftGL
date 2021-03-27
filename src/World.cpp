@@ -157,8 +157,6 @@ void World::Chunk::GenerateModel() {
 						v.position.x += blockPosition.x;
 						v.position.y += blockPosition.y;
 						v.position.z += blockPosition.z;
-						v.position.x += mMat.Position().x * CHUNK_WIDTH; // place vertices in world space coordinates
-						v.position.z += mMat.Position().z * CHUNK_WIDTH;
 						verticesLists[blockId].push_back(v);
 					}
 
@@ -176,8 +174,11 @@ void World::Chunk::GenerateModel() {
 }
 
 void World::Chunk::Draw() {
-	// TODO: eventually fix this to actually do the proper calculation here
-	Mat4 mvMat = world.camera.vMat * IdentityMatrix();
+	Mat4 new_mMat = mMat;
+	new_mMat.Position().x *= CHUNK_WIDTH;
+	new_mMat.Position().z *= CHUNK_WIDTH;
+
+	Mat4 mvMat = world.camera.vMat * new_mMat;
 
 	// draw each type of block separately
 	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
@@ -201,7 +202,7 @@ void World::Chunk::Draw() {
 		shader.SetUniformMatrix4fv("mvMat", mvMat);
 		shader.SetUniformMatrix4fv("pMat", world.camera.pMat);
 
-		world.renderer.Draw(va, ib, shader);
+		world.renderer.DrawIndexed(va, ib, shader);
 	}
 }
 

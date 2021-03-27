@@ -29,11 +29,18 @@ void Renderer::ClearScreen() {
 	GLErrorCheck(glClear(GL_COLOR_BUFFER_BIT));
 }
 
-void Renderer::Draw(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader) {
+void Renderer::DrawIndexed(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader) {
 	vba.Bind();
 	shader.Bind();
 	
 	GLErrorCheck(glDrawElements(GL_LINES, ib.GetCount(), GL_UNSIGNED_INT, 0));
+}
+
+void Renderer::DrawIndexedInstanced(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader, unsigned int instanceCount) {
+	vba.Bind();
+	shader.Bind();
+
+	glDrawElementsInstanced(GL_LINES, ib.GetCount(), GL_UNSIGNED_INT, 0, instanceCount);
 }
 
 void Renderer::SwapBuffers() {

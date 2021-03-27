@@ -7,6 +7,7 @@ struct VertexBufferElement {
 	unsigned int type;
 	unsigned int count;
 	bool normalized;
+	unsigned int divisor = 0;
 
 	static unsigned int GetSizeOfType(unsigned int GL_type) {
 		switch (GL_type) {
@@ -32,25 +33,25 @@ public:
 	}
 
 	template<typename T>
-	void Push(unsigned int count, bool normalized) {
+	void Push(unsigned int count, bool normalized, unsigned int divisor) {
 		static_assert(false);
 	}
 
 	template<>
-	void Push<float>(unsigned int count, bool normalized) {
-		elements.push_back({ GL_FLOAT, count, normalized });
+	void Push<float>(unsigned int count, bool normalized, unsigned int divisor) {
+		elements.push_back({ GL_FLOAT, count, normalized, divisor });
 		stride += count * VertexBufferElement::GetSizeOfType(GL_FLOAT);
 	}
 
 	template<>
-	void Push<unsigned int>(unsigned int count, bool normalized) {
-		elements.push_back({ GL_UNSIGNED_INT, count, normalized });
+	void Push<unsigned int>(unsigned int count, bool normalized, unsigned int divisor) {
+		elements.push_back({ GL_UNSIGNED_INT, count, normalized, divisor });
 		stride += count * VertexBufferElement::GetSizeOfType(GL_UNSIGNED_INT);
 	}
 
 	template<>
-	void Push<unsigned char>(unsigned int count, bool normalized) {
-		elements.push_back({ GL_UNSIGNED_BYTE, count, normalized });
+	void Push<unsigned char>(unsigned int count, bool normalized, unsigned int divisor) {
+		elements.push_back({ GL_UNSIGNED_BYTE, count, normalized, divisor });
 		stride += count * VertexBufferElement::GetSizeOfType(GL_UNSIGNED_BYTE);
 	}
 

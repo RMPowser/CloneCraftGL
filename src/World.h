@@ -52,8 +52,7 @@ private:
 		Mat4 mMat;
 
 		// initialize an array of vectors. one vector for each block type.
-		std::vector<Vertex> verticesLists[(int)BlockType::NUM_TYPES];
-		std::vector<unsigned int> indicesLists[(int)BlockType::NUM_TYPES];
+		std::vector<Vec3> blockPositionLists[(int)BlockType::NUM_TYPES];
 		
 		bool isInitialized = false;
 		bool isLoaded = false;
@@ -121,8 +120,8 @@ public:
 
 	void Update();
 	void Draw();
-	const BlockType& GetBlock(const Vec4& worldCoords);
-	void SetBlock(const BlockType& id, const Vec4& blockPos);
+	const BlockType& GetBlock(const Vec3& worldCoords);
+	void SetBlock(const BlockType& id, const Vec3& worldCoords);
 	Chunk* GetChunk(const Vec2& chunkPos);
 
 	inline const BlockData& GetBlockDataFor(BlockType id) const { return blockDatabase[(unsigned int)id]; };

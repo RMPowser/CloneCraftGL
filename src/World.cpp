@@ -34,7 +34,7 @@ const bool World::Chunk::IsBlockOutOfBounds(const Vec3& blockPos) const {
 
 const BlockType& World::Chunk::GetBlock(const Vec3& blockPos) const {
 	if (IsBlockOutOfBounds(blockPos)) {
-		return BlockType::Air;
+		return BlockType::Dirt;
 	}
 
 	return layers[(int)blockPos.y].GetBlock(blockPos);
@@ -48,13 +48,14 @@ void World::Chunk::SetBlock(const BlockType& id, const Vec3& blockPos) {
 
 void World::Chunk::GenerateModel() {
 	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
-		verticesLists[i].clear();
-		indicesLists[i].clear();
+		blockPositionLists[i].clear();
 	}
 
 	// preallocate
-	Vec3 blockPosition;
-	Chunk* otherChunk;
+	Vec3 blockChunkPosition;
+	Vec3 blockWorldPosition;
+	float chunkWorldPosX = mMat.Position().x * CHUNK_WIDTH;
+	float chunkWorldPosZ = mMat.Position().z * CHUNK_WIDTH;
 	int blockId;
 	unsigned int offsets[(int)BlockType::NUM_TYPES];
 
@@ -70,101 +71,27 @@ void World::Chunk::GenerateModel() {
 			for (float z = 0; z < CHUNK_WIDTH; z++) {
 
 				// infer the block position using its coordinates
-				blockPosition = { x, y, z };
+				blockChunkPosition = { x, y, z };
+				blockWorldPosition = { x + chunkWorldPosX, y, z + chunkWorldPosZ };
 
-				blockId = (int)GetBlock(blockPosition);
+				blockId = (int)GetBlock(blockChunkPosition);
 
 				// don't render air
 				if (blockId == (int)BlockType::Air) {
 					continue;
 				}
 
-				auto getBlock = [&](float x, float y, float z) {
-					// this stops layer 0 from always being rendered
-					if (y == -1) {
-						return BlockType::Grass;
-					}
-
-					otherChunk = world.GetChunk(chunkPos);
-
-					if ((x < 0 && chunkPos.x == lowChunkXZ.x) ||
-						(z < 0 && chunkPos.z == lowChunkXZ.z) ||
-						(x >= CHUNK_WIDTH && chunkPos.x == highChunkXZ.x) ||
-						(z >= CHUNK_WIDTH && chunkPos.z == highChunkXZ.z)) {
-						return BlockType::Grass;
-					}
-
-					if (x < 0 && z < 0) {
-						x += CHUNK_WIDTH;
-						z += CHUNK_WIDTH;
-						otherChunk = world.GetChunk(Vec2(chunkPos.x - 1, chunkPos.z - 1));
-					}
-					else if (x >= CHUNK_WIDTH && z >= CHUNK_WIDTH) {
-						x -= CHUNK_WIDTH;
-						z -= CHUNK_WIDTH;
-						otherChunk = world.GetChunk(Vec2(chunkPos.x + 1, chunkPos.z + 1));
-					}
-					else if (x < 0 && z >= CHUNK_WIDTH) {
-						x += CHUNK_WIDTH;
-						z -= CHUNK_WIDTH;
-						otherChunk = world.GetChunk(Vec2(chunkPos.x - 1, chunkPos.z + 1));
-					}
-					else if (x >= CHUNK_WIDTH && z < 0) {
-						x -= CHUNK_WIDTH;
-						z += CHUNK_WIDTH;
-						otherChunk = world.GetChunk(Vec2(chunkPos.x + 1, chunkPos.z - 1));
-					}
-					else if (x < 0) {
-						x += CHUNK_WIDTH;
-						otherChunk = world.GetChunk(Vec2(chunkPos.x - 1, chunkPos.z));
-					}
-					else if (x >= CHUNK_WIDTH) {
-						x -= CHUNK_WIDTH;
-						otherChunk = world.GetChunk(Vec2(chunkPos.x + 1, chunkPos.z));
-					}
-					else if (z < 0) {
-						z += CHUNK_WIDTH;
-						otherChunk = world.GetChunk(Vec2(chunkPos.x, chunkPos.z - 1));
-					}
-					else if (z >= CHUNK_WIDTH) {
-						z -= CHUNK_WIDTH;
-						otherChunk = world.GetChunk(Vec2(chunkPos.x, chunkPos.z + 1));
-					}
-
-
-					return otherChunk->GetBlock(Vec3(x, y, z));
-				};
-
-
 				/////////////////////////////////////////////////////
 				// decide if we actually need to render each block //
 				/////////////////////////////////////////////////////
-				if (getBlock(x, y + 1, z) == BlockType::Air ||
-					getBlock(x, y - 1, z) == BlockType::Air ||
-					getBlock(x + 1, y, z) == BlockType::Air ||
-					getBlock(x - 1, y, z) == BlockType::Air ||
-					getBlock(x, y, z + 1) == BlockType::Air ||
-					getBlock(x, y, z - 1) == BlockType::Air) {
-					auto& verts = world.blockDatabase[blockId].vertices;
-					auto& inds = world.blockDatabase[blockId].indices;
-
-					// save the offset for the indices
-					offsets[blockId] = verticesLists[blockId].size();
-
-					// account for the block position and chunk position and store the new verts for later
-					for (int i = 0; i < verts.size(); i++) {
-						Vertex v(verts[i]);
-						v.position.x += blockPosition.x;
-						v.position.y += blockPosition.y;
-						v.position.z += blockPosition.z;
-						verticesLists[blockId].push_back(v);
-					}
-
-					// account for the offset into vertices vector and store the indices for later
-					for (int i = 0; i < inds.size(); i++) {
-						unsigned int ind(inds[i] + offsets[blockId]);
-						indicesLists[blockId].push_back(ind);
-					}
+				if (world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y + 1, blockWorldPosition.z }) == BlockType::Air ||
+					world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y - 1, blockWorldPosition.z }) == BlockType::Air ||
+					world.GetBlock({ blockWorldPosition.x + 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air ||
+					world.GetBlock({ blockWorldPosition.x - 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air ||
+					world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z + 1 }) == BlockType::Air ||
+					world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z - 1 }) == BlockType::Air) {
+					
+					blockPositionLists[blockId].push_back(blockChunkPosition);
 				}
 			}
 		}
@@ -174,35 +101,55 @@ void World::Chunk::GenerateModel() {
 }
 
 void World::Chunk::Draw() {
-	Mat4 new_mMat = mMat;
-	new_mMat.Position().x *= CHUNK_WIDTH;
-	new_mMat.Position().z *= CHUNK_WIDTH;
+	Vec3 blockWorldCoords;
+	float chunkWorldPosX = mMat.Position().x * CHUNK_WIDTH;
+	float chunkWorldPosZ = mMat.Position().z * CHUNK_WIDTH;
+	Mat4 mvMat;
 
-	Mat4 mvMat = world.camera.vMat * new_mMat;
+	std::vector<Mat4> mvMats;
 
 	// draw each type of block separately
 	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
+		auto& blockPositions = blockPositionLists[i];
+
+		auto& vertices = world.blockDatabase[i].vertices;
+		auto& indices = world.blockDatabase[i].indices;
+
+		for (size_t j = 0; j < blockPositions.size(); j++) {
+			blockWorldCoords = { blockPositions[j].x + chunkWorldPosX, blockPositions[j].y, blockPositions[j].z + chunkWorldPosZ };
+
+			mvMat = world.camera.vMat * MakeTranslationMatrix({ blockWorldCoords, 1 });
+
+			mvMats.push_back(mvMat);
+		}
+
 		VertexBufferArray va;
 
-		VertexBuffer vb(verticesLists[i].data(), verticesLists[i].size() * sizeof(Vertex));
-
+		VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
 		VertexBufferLayout layout;
+		layout.Push<float>(3, false, 0);
+		layout.Push<float>(2, true, 0);
 
-		layout.Push<float>(3, false);
-		layout.Push<float>(2, true);
+		VertexBuffer matrices(mvMats.data(), mvMats.size() * sizeof(Mat4));
+		VertexBufferLayout layoutMatrices;
+		layoutMatrices.Push<float>(4, false, 0);
+		layoutMatrices.Push<float>(4, false, 0);
+		layoutMatrices.Push<float>(4, false, 0);
+		layoutMatrices.Push<float>(4, false, 1);
 
 		va.AddBuffer(vb, layout);
+		va.AddBuffer(matrices, layoutMatrices);
 
-		IndexBuffer ib(indicesLists[i].data(), indicesLists[i].size());
-		
+		IndexBuffer ib(indices.data(), indices.size());
+
 		ShaderProgram& shader = world.shaders[(int)ShaderType::Basic];
 		shader.Bind();
 		world.textures[i].Bind(0);
 		shader.SetUniform1i("_texture", 0);
-		shader.SetUniformMatrix4fv("mvMat", mvMat);
+		//shader.SetUniformMatrix4fv("mvMat", mvMat);
 		shader.SetUniformMatrix4fv("pMat", world.camera.pMat);
 
-		world.renderer.DrawIndexed(va, ib, shader);
+		world.renderer.DrawIndexedInstanced(va, ib, shader, blockPositions.size());
 	}
 }
 
@@ -214,13 +161,13 @@ void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long
 	for (int x = 0; x < CHUNK_WIDTH; x++) {
 		for (int z = 0; z < CHUNK_WIDTH; z++) {
 			int y = image->GetValue(x, z).red;
-			int r = rand() % 4;
-			if (r == 1) {
-				SetBlock(BlockType::Dirt, Vec3(x, y, z));
-			}
-			else {
+			//int r = rand() % 4;
+			//if (r == 1) {
+			//	SetBlock(BlockType::Dirt, Vec3(x, y, z));
+			//}
+			//else {
 				SetBlock(BlockType::Grass, Vec3(x, y, z));
-			}
+			//}
 			
 
 			// set every block below the surface as well
@@ -403,16 +350,16 @@ void World::Draw() {
 	}
 }
 
-const BlockType& World::GetBlock(const Vec4& worldCoords) {
+const BlockType& World::GetBlock(const Vec3& worldCoords) {
 	auto blockPosition = GetBlockCoords(worldCoords);
 	auto chunkPosition = GetChunkCoords(worldCoords);
 
 	return GetChunk(chunkPosition)->GetBlock(blockPosition);
 }
 
-void World::SetBlock(const BlockType& id, const Vec4& blockPos) {
-	auto blockPosition = GetBlockCoords(blockPos);
-	auto chunkPosition = GetChunkCoords(blockPos);
+void World::SetBlock(const BlockType& id, const Vec3& worldCoords) {
+	auto blockPosition = GetBlockCoords(worldCoords);
+	auto chunkPosition = GetChunkCoords(worldCoords);
 
 	GetChunk(chunkPosition)->SetBlock(id, blockPosition);
 }

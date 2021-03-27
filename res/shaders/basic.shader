@@ -1,11 +1,11 @@
 #shader vertex
 #version 430 core
 
-uniform mat4 mvMat;
 uniform mat4 pMat;
 
 layout (location=0) in vec4 vPos;
 layout (location=1) in vec2 tCoord;
+layout (location=2) in mat4 mvMat;
 
 out vec2 texCoord;
 

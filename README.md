@@ -1,6 +1,6 @@
 # Overview
 
-CloneCraftGL is a complete rewrite of the original CloneCraft that uses OpenGL instead of Vulkan.
+CloneCraftGL is a complete rewrite of the original CloneCraft that uses OpenGL instead of Vulkan. See the original [here](https://github.com/RMPowser/CloneCraft).
 
 CloneCraft is a very simple Minecraft clone for Windows that I wrote for my midterm project over the course of one month. It's written in C/C++ and currently uses the OpenGL graphics API along with a few other quality-of-life libraries.
 

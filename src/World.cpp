@@ -67,15 +67,13 @@ void World::Chunk::GenerateModel() {
 
 	Vec2 chunkPos(mMat.Position().x, mMat.Position().z);
 
-	for (float y = 0; y < CHUNK_HEIGHT; y++) {
+	for (float z = 0; z < CHUNK_WIDTH; z++) {
 		for (float x = 0; x < CHUNK_WIDTH; x++) {
-			for (float z = 0; z < CHUNK_WIDTH; z++) {
+			for (float y = highestBlockYPerColumn[(int)x][(int)z]; y > -1; y--) {
 
 				// infer the block position using its coordinates
 				blockChunkPosition = { x, y, z };
 				blockWorldPosition = { x + chunkWorldPosX, y, z + chunkWorldPosZ };
-
-				//ASSERT(blockWorldPosition != Vec3(966, 39, 1007));
 
 				blockId = (int)GetBlock(blockChunkPosition);
 
@@ -95,6 +93,9 @@ void World::Chunk::GenerateModel() {
 					world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z - 1 }) == BlockType::Air) {
 					
 					blockPositionLists[blockId].push_back(blockChunkPosition);
+				}
+				else {
+					y = 0; // skip to the next column
 				}
 			}
 		}
@@ -122,8 +123,7 @@ void World::Chunk::Draw() {
 
 		for (size_t j = 0; j < blockPositions.size(); j++) {
 			blockWorldCoords = { blockPositions[j].x + chunkWorldPosX, blockPositions[j].y, blockPositions[j].z + chunkWorldPosZ };
-			//ASSERT(blockWorldCoords != Vec3(966, 39, 1007));
-
+			
 			mvMat = world.camera.vMat * MakeTranslationMatrix({ blockWorldCoords, 1 });
 
 			mvMats.push_back(mvMat);
@@ -180,6 +180,8 @@ void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long
 			else {
 				SetBlock(BlockType::Grass, Vec3(x, y, z));
 			}
+
+			highestBlockYPerColumn[x][z] = y;
 			
 
 			// set every block below the surface as well

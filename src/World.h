@@ -49,6 +49,7 @@ private:
 	private:
 		World& world;
 		Layer layers[CHUNK_HEIGHT];
+		int highestBlockYPerColumn[CHUNK_WIDTH][CHUNK_WIDTH];
 		Mat4 mMat;
 
 		// initialize an array of vectors. one vector for each block type.

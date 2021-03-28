@@ -1,58 +1,37 @@
 # Overview
 
-CloneCraftGL is a complete rewrite of the original CloneCraft. It uses OpenGL and GLSL instead of Vulkan.
+CloneCraftGL is a complete rewrite of the original CloneCraft that uses OpenGL instead of Vulkan.
 
-CloneCraft is a Minecraft clone for Windows (considering Linux) that I wrote for my midterm project. I wrote the original version from scratch over the course of one month. It's written in C++ and uses the Vulkan graphics api along with a few other quality-of-life libraries 
-that help with things like creating a window and terrain generation.
+CloneCraft is a very simple Minecraft clone for Windows that I wrote for my midterm project over the course of one month. It's written in C/C++ and currently uses the OpenGL graphics API along with a few other quality-of-life libraries.
 
-When I started the project, I had zero experience with any graphics api, let alone Vulkan. Long 
-story short, Vulkan is not a beginners api. It was hard, but I learned a lot.
+When I started the project, I had zero experience with any form of computer graphics, let alone Vulkan/OpenGL. Long story short, Vulkan is not a beginners API. It was hard, but I learned a lot in one month.
 
-If you are building the project from source, all of the projects dependancies should be inside the 
-include folder and anything you need to link to will be in the lib folder.
-
-The original version of the game included many unfinished aspects such as the world only being one
-block thick, having only one block type (technically 2. air and grass), collision detection not 
-working in negative coordinate space, no frustum or occulsion culling, and it was even possible for 
-the vertex buffer to be empty when it's passed to Vulkan causing the game to crash. There were many 
-more problems than these but most of them have since been fixed. 
+The original version of the game included many unfinished aspects such as the world only being one block thick, having only one block type (technically 2. air and grass), collision detection not working in negative coordinate space, no frustum culling, and it was even possible to crash your graphics driver. Most of these problems have since been fixed, but not all of them. 
 
 ## Features
 - 3D graphics with OpenGL
+- instanced rendering
 - KB/M controls
 - .OBJ file loading
 - texture mapping
-- 3D collision detection
+- collision detection
 - infinite procedural terrain generation
 - basic mining and building
 - flight mode to turn off gravity
 
 ## Controls
 
+`WASD	- move and strafe`
+`Mouse	- look around`
+`Space	- jump/fly up`
+`Ctrl	- fly down`
+`F		- toggle flying`
+`Shift	- sprint`
 
+## HOW TO BUILD
 
-	toggle flying		- F
+You'll the boost library for C++. Download it and create a system environment variable called `BOOST_SDK`. Mine looks like this: `C:\SDKs\boost_1_73_0`.
+
+Once you're done with that, open a terminal in the root of the repo. Run premake5 and pass it the name of the IDE you want to generate project files for. A list can be found here: https://github.com/premake/premake-core/wiki/Using-Premake. I use Visual Studio 2019, so mine looks like this: `premake5 vs2019`.
 	
-	While Flying:
-		move up    	- SPACE
-		move down  	- CTRL
-
-
-### HOW TO BUILD
-
-You will need the Vulkan sdk. Download it and also download the debug libs and extract them to the 
-directory. Make sure you have a system environment variable called VULKAN_SDK that looks something 
-like this: "C:\SDKs\Vulkan\1.2.154.1". 
-
-Next you'll the boost library for C++. Download it and create an system environment variable called
-BOOST_SDK. It should look something like this: "C:\SDKs\boost_1_73_0".
-
-Once you're done with that, open a terminal in the root of the repo. Run premake5 and pass it the 
-IDE you want to generate project files for. 
-A list can be found here: https://github.com/premake/premake-core/wiki/Using-Premake
-
-I use Visual Studio 2019, so mine looks like this:
-	premake5 vs2019
-	
-It should create project files in the ./build directory and should handle includes and linking 
-automatically. You should just be able to build and run the project immediately.
+It will create project files in the current directory and should handle includes and linking automatically. You should now be able to open the project files and then build and run the project.

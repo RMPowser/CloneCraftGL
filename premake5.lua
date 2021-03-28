@@ -1,6 +1,6 @@
 workspace("CloneCraftGL")
 	configurations({"Debug",  "Release"})
-	platforms({"Win64", "Linux64"})
+	platforms({"Win64"})
 	architecture("x64")
 	defines("UNICODE")
 	location("./")
@@ -43,12 +43,6 @@ workspace("CloneCraftGL")
 			system("windows")
 			defines({
 				"_WIN32"
-			})
-			
-		filter("platforms:Linux64")
-			system("linux")
-			defines({
-				"__linux__"
 			})
 
 		filter("configurations:Debug")

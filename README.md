@@ -15,7 +15,7 @@ The original version of the game included many unfinished aspects such as the wo
 - .OBJ file loading
 - texture mapping
 - collision detection
-- infinite procedural terrain generation
+- multithreaded infinite procedural terrain generation from a random seed
 - basic mining and building
 - flight mode to turn off gravity
 

@@ -45,6 +45,8 @@ public:
 	Vec3(const Vec4& xyzw);
 	Vec3(const Vec3& other);
 
+	Vec3 AsInt() const;
+
 	float& operator[](unsigned int i);
 	float const& operator[](unsigned int i) const;
 	Vec3& operator=(const Vec3& other);

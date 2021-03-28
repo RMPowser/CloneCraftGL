@@ -55,7 +55,7 @@ private:
 		// initialize an array of vectors. one vector for each block type.
 		std::vector<Vec3> blockPositionLists[(int)BlockType::NUM_TYPES];
 		
-		bool isInitialized = false;
+		bool hasTerrain = false;
 		bool isLoaded = false;
 
 	public:
@@ -66,10 +66,10 @@ private:
 		const BlockType& GetBlock(const Vec3& blockPos) const;
 		void SetBlock(const BlockType& id, const Vec3& blockPos);
 		void Draw();
-		void GenerateModel();
+		void LoadBlockPositionsForRendering();
 		void GenerateTerrain(TerrainGenerator& terrainGenerator, long long& seed);
 
-		inline bool IsInitialized() { return isInitialized; }
+		inline bool IsInitialized() { return hasTerrain; }
 		inline bool IsLoaded() { return isLoaded; }
 	};
 
@@ -98,8 +98,8 @@ private:
 	BlockData blockDatabase[(int)BlockType::NUM_TYPES];
 	Camera& camera;
 	Renderer& renderer;
-	unsigned int renderDistance = 3;
-	long long seed = 1;
+	unsigned int renderDistance = 8;
+	long long seed = -1;
 	int numChunksPerFrame = 3;
 
 	TerrainGenerator terrainGenerator;

@@ -44,10 +44,13 @@ const BlockType& World::Chunk::GetBlock(const Vec3& blockPos) const {
 void World::Chunk::SetBlock(const BlockType& id, const Vec3& blockPos) {
 	if (!IsBlockOutOfBounds(blockPos)) {
 		(layers[(int)blockPos.y].SetBlock(id, blockPos));
+		if (blockPos.y > highestBlockYPerColumn[(int)blockPos.x][(int)blockPos.z]) {
+			highestBlockYPerColumn[(int)blockPos.x][(int)blockPos.z] = (int)blockPos.y;
+		}
 	}
 }
 
-void World::Chunk::GenerateModel() {
+void World::Chunk::LoadBlockPositionsForRendering() {
 	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
 		blockPositionLists[i].clear();
 	}
@@ -205,7 +208,7 @@ void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long
 	//	}
 	//}
 
-	isInitialized = true;
+	hasTerrain = true;
 }
 
 void World::UpdateLoadList() {
@@ -284,7 +287,7 @@ void World::UpdateRenderableList() {
 			chunkAccessMutex.lock();
 			chunk = GetChunk(renderableChunksList[i]);
 			if (!chunk->IsLoaded()) {
-				chunk->GenerateModel();
+				chunk->LoadBlockPositionsForRendering();
 				numChunksLoaded++;
 			}
 			chunkAccessMutex.unlock();
@@ -373,14 +376,14 @@ World::~World() {
 
 void World::Update() {
 	UpdateLoadList();
-	UpdateVisibleList();
-	UpdateUnloadList();
-	UpdateRenderableList();
 	
 	// if the camera has crossed into a new chunk or a vertex update is being forced
 	if (camChunkCoordsOld != GetChunkCoords(camera.position) || forceVertexUpdate) {
 		camChunkCoordsOld = GetChunkCoords(camera.position);
 		forceVertexUpdate = false;
+		UpdateVisibleList();
+		UpdateRenderableList();
+		UpdateUnloadList();
 	}
 }
 
@@ -405,7 +408,6 @@ const BlockType& World::GetBlock(const Vec3& worldCoords) {
 void World::SetBlock(const BlockType& id, const Vec3& worldCoords) {
 	auto blockPosition = GetBlockCoords(worldCoords);
 	auto chunkPosition = GetChunkCoords(worldCoords);
-
 	GetChunk(chunkPosition)->SetBlock(id, blockPosition);
 }
 

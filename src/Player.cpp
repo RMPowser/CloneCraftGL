@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "Ray.h"
 
 Player::Player(Window& window, World& world, Camera& cam) : window(window), world(world), camera(cam) {
 	mMat.Position() = Vec4(camera.position, 1); // set spawn
@@ -46,56 +47,45 @@ void Player::Update(float dt) {
 
 
 	// break block
-	/*if (window.GetKey(G_BUTTON_LEFT) && canPlaceBlock) {
-		auto& world = AppGlobals::world;
+	if (window.GetKey(G_BUTTON_LEFT) && canPlaceBlock) {
 
 		for (Ray ray(camera.position, camera.rotation); ray.GetLength() <= buildRange; ray.Step(0.001f)) {
-			auto rayEnd = ray.GetEnd();
-			auto block = world.getBlock(rayEnd);
+			Vec3 rayEnd = ray.GetEnd();
+			BlockType block = world.GetBlock(rayEnd);
 
 			if (block != BlockType::Air) {
-				if (world.setBlock(BlockType::Air, rayEnd)) {
-					Vec4 xz = World::getChunkXZ(rayEnd);
-					world.updateChunk(world.getChunk(xz)->position);
-					world.updateChunk(world.getChunk(Vec4(xz.x + 1, 0.f, xz.z, 0.f))->position);
-					world.updateChunk(world.getChunk(Vec4(xz.x - 1, 0.f, xz.z, 0.f))->position);
-					world.updateChunk(world.getChunk(Vec4(xz.x, 0.f, xz.z + 1, 0.f))->position);
-					world.updateChunk(world.getChunk(Vec4(xz.x, 0.f, xz.z - 1, 0.f))->position);
-					break;
-				}
-				else {
-					__debugbreak();
-					throw new std::runtime_error("unable to destroy block!");
-				}
+				world.SetBlock(BlockType::Air, rayEnd);
+				Vec2 xz = World::GetChunkCoords(rayEnd);
+				world.GetChunk(xz)->LoadBlockPositionsForRendering();
+				world.GetChunk(Vec2(xz.x + 1, xz.z))->LoadBlockPositionsForRendering();
+				world.GetChunk(Vec2(xz.x - 1, xz.z))->LoadBlockPositionsForRendering();
+				world.GetChunk(Vec2(xz.x, xz.z + 1))->LoadBlockPositionsForRendering();
+				world.GetChunk(Vec2(xz.x, xz.z - 1))->LoadBlockPositionsForRendering();
+				break;
 			}
 		}
 
 		canPlaceBlock = false;
 	}
-	else if (!controller.keys[G_BUTTON_LEFT]) {
+	else if (!window.GetKey(G_BUTTON_LEFT)) {
 		canPlaceBlock = true;
-	}*/
+	}
 
 
 	// place block
-	/*if (window.GetKey(G_BUTTON_RIGHT) && canBreakBlock) {
-		Vec4 lastRayPosition { 0, 0, 0, 0 };
-		auto& world = AppGlobals::world;
+	if (window.GetKey(G_BUTTON_RIGHT) && canBreakBlock) {
+		Vec3 lastRayPosition { 0, 0, 0 };
 
 		for (Ray ray(camera.position, camera.rotation); ray.GetLength() <= buildRange; ray.Step(0.001f)) {
-			auto rayEnd = ray.GetEnd();
-			auto block = world.getBlock(rayEnd);
-			auto blockPosition = lastRayPosition.AsInt();
+			Vec3 rayEnd = ray.GetEnd();
+			BlockType block = world.GetBlock(rayEnd);
+			Vec3 blockPosition = lastRayPosition;
 
 			if (block != BlockType::Air) {
-				if (!wouldCollide(blockPosition)) {
-					if (world.setBlock(BlockType::Grass, lastRayPosition)) {
-						Vec4 xz = World::getChunkXZ(lastRayPosition);
-						world.updateChunk(world.getChunk(xz)->position);
-						break;
-					}
-				}
-				else {
+				if (!WouldCollide(blockPosition)) {
+					world.SetBlock(BlockType::Grass, lastRayPosition);
+					Vec2 xz = World::GetChunkCoords(lastRayPosition);
+					world.GetChunk(xz)->LoadBlockPositionsForRendering();
 					break;
 				}
 			}
@@ -103,9 +93,9 @@ void Player::Update(float dt) {
 		}
 		canBreakBlock = false;
 	}
-	else if (!controller.keys[G_BUTTON_RIGHT]) {
+	else if (!window.GetKey(G_BUTTON_RIGHT)) {
 		canBreakBlock = true;
-	}*/
+	}
 
 
 
@@ -175,7 +165,7 @@ void Player::Update(float dt) {
 	camera.position.y += height;
 }
 
-void Player::Collide(const Vec4& vel) {
+void Player::Collide(const Vec3& vel) {
 	float xMin = mMat.Position().x - width;
 	float xMax = mMat.Position().x + width;
 	float yMin = mMat.Position().y;
@@ -186,11 +176,11 @@ void Player::Collide(const Vec4& vel) {
 	for (int x = xMin; x < xMax; x++) {
 		for (int y = yMin; y < yMax; y++) {
 			for (int z = zMin; z < zMax; z++) {
-				auto block = world.GetBlock(Vec4(x, y, z, 0));
+				auto block = world.GetBlock(Vec3(x, y, z));
 
 				if (world.GetBlockDataFor(block).isCollidable) {
 					if (vel.y > 0) {
-						mMat.Position().y = y - height;
+						mMat.Position().y = y - (height + 0.1f);
 						fallingSpeed = 0;
 					}
 					else if (vel.y < 0) {
@@ -219,7 +209,7 @@ void Player::Collide(const Vec4& vel) {
 }
 
 // This function is for checking if a block being placed would collide with the player.
-bool Player::WouldCollide(Vec4 blockPosition) {
+bool Player::WouldCollide(const Vec3& blockPosition) {
 	float xMin = mMat.Position().x - width;
 	float xMax = mMat.Position().x + width;
 	float yMin = mMat.Position().y;
@@ -230,7 +220,8 @@ bool Player::WouldCollide(Vec4 blockPosition) {
 	for (int x = xMin; x < xMax; x++) {
 		for (int y = yMin; y < yMax; y++) {
 			for (int z = zMin; z < zMax; z++) {
-				if (blockPosition == Vec4(x, y, z, 0)) {
+				if (blockPosition.AsInt() == Vec3(x, y, z) || 
+					blockPosition.AsInt() == Vec3(x, y + 1, z)) {
 					return true;
 				}
 			}

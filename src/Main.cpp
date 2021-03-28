@@ -40,6 +40,7 @@ int main() {
 			player.Update(dt);
 			player.PrintDebugInfo(dt);
 			camera.Update(window.GetAspectRatio());
+			world.PrintDebugInfo();
 			//world.Update(); the world updates itself now
 
 			// ---  Draw  --- //

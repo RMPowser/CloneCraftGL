@@ -79,6 +79,10 @@ Vec3::Vec3(const Vec3& other) {
 	operator=(other);
 }
 
+Vec3 Vec3::AsInt() const {
+	return {(float)((int)x), (float)((int)y), (float)((int)z) };
+}
+
 float& Vec3::operator[](unsigned int i) {
 	assert(i < 3);
 	return glmVec[i];

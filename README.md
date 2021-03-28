@@ -21,12 +21,12 @@ The original version of the game included many unfinished aspects such as the wo
 
 ## Controls
 
-`WASD	- move and strafe`
-`Mouse	- look around`
-`Space	- jump/fly up`
-`Ctrl	- fly down`
-`F		- toggle flying`
-`Shift	- sprint`
+`WASD	- move and strafe
+Mouse	- look around
+Space	- jump/fly up
+Ctrl	- fly down
+F	- toggle flying
+Shift	- sprint`
 
 ## HOW TO BUILD
 

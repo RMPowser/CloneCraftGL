@@ -30,8 +30,10 @@ The original version of the game included many unfinished aspects such as the wo
 
 ## HOW TO BUILD
 
-You'll the boost library for C++. Download it and create a system environment variable called `BOOST_SDK`. Mine looks like this: `C:\SDKs\boost_1_73_0`.
+If you want the absolute most current version of the source, clone the `development` branch. The `main` branch is usually pretty out of date and only updated for new releases.
 
-Once you're done with that, open a terminal in the root of the repo. Run premake5 and pass it the name of the IDE you want to generate project files for. A list can be found here: https://github.com/premake/premake-core/wiki/Using-Premake. I use Visual Studio 2019, so mine looks like this: `premake5 vs2019`.
+After cloning the repo, you'll need the boost library for C++ before you can build project files. Get it [here](https://www.boost.org/users/download/) and create a system environment variable called `BOOST_SDK`. Mine looks like this: `C:\SDKs\boost_1_73_0`.
+
+Once you're done with that, open a terminal in the root of the repo. Run premake5 and pass it the name of the IDE you want to generate project files for. A list can be found [here](https://github.com/premake/premake-core/wiki/Using-Premake). I use Visual Studio 2019, so mine looks like this: `premake5 vs2019`.
 	
-It will create project files in the current directory and should handle includes and linking automatically. You should now be able to open the project files and then build and run the project.
+Premake will create project files in the current directory and should handle includes and linking automatically. You should now be able to open the project files and then build and run the project.

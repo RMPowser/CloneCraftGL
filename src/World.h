@@ -88,6 +88,10 @@ private:
 
 // class World {
 private:
+	std::mutex chunkAccessMutex;
+	std::mutex stopMutex;
+	bool stop = false;
+
 	ShaderProgram shaders[(int)ShaderType::NUM_TYPES];
 	Texture textures[(int)BlockType::NUM_TYPES]; // one texture for each block
 	BlockData blockDatabase[(int)BlockType::NUM_TYPES];
@@ -115,8 +119,12 @@ private:
 	bool ChunkAlreadyExistsIn(const std::vector<Vec2>& v, const Vec2& elem) const;
 	bool ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChunkCoords, float sqRenderDistance) const ;
 
+	bool GetStop();
+	void SetStop(bool value);
+
 public:
 	World(Camera& cam, Renderer& renderer);
+	~World();
 
 	void Update();
 	void Draw();
@@ -126,7 +134,7 @@ public:
 
 	inline const BlockData& GetBlockDataFor(BlockType id) const { return blockDatabase[(unsigned int)id]; };
 
-	static Vec3 GetBlockCoords(Vec3 worldCoords) { return Vec3((int)worldCoords.x % CHUNK_WIDTH, worldCoords.y, (int)worldCoords.z % CHUNK_WIDTH); }
+	static Vec3 GetBlockCoords(Vec3 worldCoords) { return Vec3(abs((int)worldCoords.x % CHUNK_WIDTH), worldCoords.y, abs((int)worldCoords.z % CHUNK_WIDTH)); }
 	static Vec2 GetChunkCoords(Vec3 worldCoords) { return Vec2((int)worldCoords.x / CHUNK_WIDTH, (int)worldCoords.z / CHUNK_WIDTH); }
 
 	void PrintDebugInfo();

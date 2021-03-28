@@ -1,6 +1,7 @@
 #include "World.h"
 #include "GLEW/glew.h"
 #include <string>
+#include <thread>
 
 World::Chunk::Layer::Layer() {
 	for (size_t i = 0; i < CHUNK_WIDTH; i++) {
@@ -74,6 +75,8 @@ void World::Chunk::GenerateModel() {
 				blockChunkPosition = { x, y, z };
 				blockWorldPosition = { x + chunkWorldPosX, y, z + chunkWorldPosZ };
 
+				//ASSERT(blockWorldPosition != Vec3(966, 39, 1007));
+
 				blockId = (int)GetBlock(blockChunkPosition);
 
 				// don't render air
@@ -110,6 +113,8 @@ void World::Chunk::Draw() {
 
 	// draw each type of block separately
 	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
+		mvMats.clear();
+
 		auto& blockPositions = blockPositionLists[i];
 
 		auto& vertices = world.blockDatabase[i].vertices;
@@ -117,6 +122,7 @@ void World::Chunk::Draw() {
 
 		for (size_t j = 0; j < blockPositions.size(); j++) {
 			blockWorldCoords = { blockPositions[j].x + chunkWorldPosX, blockPositions[j].y, blockPositions[j].z + chunkWorldPosZ };
+			//ASSERT(blockWorldCoords != Vec3(966, 39, 1007));
 
 			mvMat = world.camera.vMat * MakeTranslationMatrix({ blockWorldCoords, 1 });
 
@@ -144,12 +150,18 @@ void World::Chunk::Draw() {
 
 		ShaderProgram& shader = world.shaders[(int)ShaderType::Basic];
 		shader.Bind();
-		world.textures[i].Bind(0);
-		shader.SetUniform1i("_texture", 0);
-		//shader.SetUniformMatrix4fv("mvMat", mvMat);
+
+		if (world.textures[i].isValid) {
+			world.textures[i].Bind(0);
+			shader.SetUniform1i("_texture", 0);
+		}
+		else {
+			ASSERT(false);
+		}
+
 		shader.SetUniformMatrix4fv("pMat", world.camera.pMat);
 
-		world.renderer.DrawIndexedInstanced(va, ib, shader, blockPositions.size());
+		world.renderer.DrawIndexedInstanced(va, ib, shader, mvMats.size());
 	}
 }
 
@@ -161,13 +173,13 @@ void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long
 	for (int x = 0; x < CHUNK_WIDTH; x++) {
 		for (int z = 0; z < CHUNK_WIDTH; z++) {
 			int y = image->GetValue(x, z).red;
-			//int r = rand() % 4;
-			//if (r == 1) {
-			//	SetBlock(BlockType::Dirt, Vec3(x, y, z));
-			//}
-			//else {
+			int r = rand() % 4;
+			if (r == 1) {
+				SetBlock(BlockType::Dirt, Vec3(x, y, z));
+			}
+			else {
 				SetBlock(BlockType::Grass, Vec3(x, y, z));
-			//}
+			}
 			
 
 			// set every block below the surface as well
@@ -217,11 +229,14 @@ void World::UpdateLoadList() {
 				continue;
 			}
 			else if (!ChunkOutsideRenderDistance(chunkPos, camChunkCoords, sqRenderDistance)) {
-				chunk = GetChunk(chunkPos);
+				chunkAccessMutex.lock();
 
+				chunk = GetChunk(chunkPos);
 				if (!chunk->IsInitialized()) {
 					chunk->GenerateTerrain(terrainGenerator, seed);
 				}
+
+				chunkAccessMutex.unlock();
 
 				// add the chunk to the visible list because it is potentially visible
 				visibleChunksList.push_back(chunkPos);
@@ -264,11 +279,13 @@ void World::UpdateRenderableList() {
 			i--;
 		}
 		else {
+			chunkAccessMutex.lock();
 			chunk = GetChunk(renderableChunksList[i]);
 			if (!chunk->IsLoaded()) {
 				chunk->GenerateModel();
 				numChunksLoaded++;
 			}
+			chunkAccessMutex.unlock();
 		}
 
 	}
@@ -308,6 +325,20 @@ bool World::ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChun
 	return sqDistanceToChunk > sqRenderDistance;
 }
 
+bool World::GetStop() {
+	stopMutex.lock();
+	bool result = stop;
+	stopMutex.unlock();
+
+	return result;
+}
+
+void World::SetStop(bool value) {
+	stopMutex.lock();
+	stop = value;
+	stopMutex.unlock();
+}
+
 World::World(Camera& camera, Renderer& renderer)
 	: camera(camera), renderer(renderer) {
 
@@ -325,26 +356,38 @@ World::World(Camera& camera, Renderer& renderer)
 	textures[(int)BlockType::Grass].Load("res/textures/blocks/Grass.png");
 	textures[(int)BlockType::Dirt].Load("res/textures/blocks/Dirt.png");
 
-	UpdateLoadList();
+	std::thread([&]() {
+		Sleep(50);
+		while (!GetStop()) {
+			Update();
+		}
+	}).detach();
+}
+
+World::~World() {
+	SetStop(true);
+	Sleep(50);
 }
 
 void World::Update() {
 	UpdateLoadList();
+	UpdateVisibleList();
+	UpdateUnloadList();
+	UpdateRenderableList();
 	
 	// if the camera has crossed into a new chunk or a vertex update is being forced
 	if (camChunkCoordsOld != GetChunkCoords(camera.position) || forceVertexUpdate) {
 		camChunkCoordsOld = GetChunkCoords(camera.position);
-		UpdateVisibleList();
-		UpdateUnloadList();
-		UpdateRenderableList();
 		forceVertexUpdate = false;
 	}
 }
 
 void World::Draw() {
+	chunkAccessMutex.lock();
 	for (size_t i = 0; i < renderableChunksList.size(); i++) {
 		GetChunk(renderableChunksList[i])->Draw();
 	}
+	chunkAccessMutex.unlock();
 }
 
 const BlockType& World::GetBlock(const Vec3& worldCoords) {

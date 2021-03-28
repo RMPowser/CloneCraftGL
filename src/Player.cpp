@@ -161,7 +161,7 @@ void Player::Update(float dt) {
 		camera.rotation.x = -mouseLookBound;
 	}
 
-	if (camera.rotation.y >= 360) {
+	if (camera.rotation.y > 360) {
 		camera.rotation.y = 0;
 	}
 	else if (camera.rotation.y < 0) {

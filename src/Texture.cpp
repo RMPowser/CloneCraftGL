@@ -12,7 +12,8 @@ Texture::~Texture() {
 	GLErrorCheck(glDeleteTextures(1, &id));
 }
 
-void Texture::Load(const std::string& filePath) {
+void Texture::Load(const std::string& _filePath) {
+	filePath = _filePath;
 	stbi_set_flip_vertically_on_load(true);
 
 	GLErrorCheck(glBindTexture(GL_TEXTURE_2D, id));

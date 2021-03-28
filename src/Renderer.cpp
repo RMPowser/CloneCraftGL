@@ -9,7 +9,7 @@
 #include <string>
 
 Renderer::Renderer(Window& window) : window(window) {
-	glfwSwapInterval(1); // vsync
+	glfwSwapInterval(0); // vsync
 	GLErrorCheck(glEnable(GL_CULL_FACE));
 	GLErrorCheck(glFrontFace(GL_CCW));
 	GLErrorCheck(glEnable(GL_DEPTH_TEST));
@@ -33,14 +33,14 @@ void Renderer::DrawIndexed(const VertexBufferArray& vba, const IndexBuffer& ib, 
 	vba.Bind();
 	shader.Bind();
 	
-	GLErrorCheck(glDrawElements(GL_LINES, ib.GetCount(), GL_UNSIGNED_INT, 0));
+	GLErrorCheck(glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0));
 }
 
 void Renderer::DrawIndexedInstanced(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader, unsigned int instanceCount) {
 	vba.Bind();
 	shader.Bind();
 
-	glDrawElementsInstanced(GL_LINES, ib.GetCount(), GL_UNSIGNED_INT, 0, instanceCount);
+	glDrawElementsInstanced(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0, instanceCount);
 }
 
 void Renderer::SwapBuffers() {

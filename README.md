@@ -27,7 +27,7 @@ Mouse		- look around
 Scrollwheel	- change FOV
 Space		- jump/fly up
 Ctrl		- fly down
-F			- toggle flying
+F		- toggle flying
 Shift		- sprint
 ```
 

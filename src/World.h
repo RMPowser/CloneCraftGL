@@ -8,6 +8,7 @@
 #include "Texture.h"
 #include <iostream>
 #include <unordered_map>
+#include "SkyBox.h"
 
 #define CHUNK_WIDTH 16
 #define CHUNK_HEIGHT 256
@@ -93,6 +94,7 @@ private:
 	std::mutex stopMutex;
 	bool stop = false;
 
+	SkyBox skybox;
 	ShaderProgram shaders[(int)ShaderType::NUM_TYPES];
 	Texture textures[(int)BlockType::NUM_TYPES]; // one texture for each block
 	BlockData blockDatabase[(int)BlockType::NUM_TYPES];

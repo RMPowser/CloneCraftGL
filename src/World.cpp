@@ -347,6 +347,17 @@ void World::SetStop(bool value) {
 World::World(Camera& camera, Renderer& renderer)
 	: camera(camera), renderer(renderer) {
 
+	// init skybox
+	std::vector<std::string> paths {
+		"res/textures/skybox/right.jpg",
+		"res/textures/skybox/left.jpg",
+		"res/textures/skybox/top.jpg",
+		"res/textures/skybox/bottom.jpg",
+		"res/textures/skybox/front.jpg",
+		"res/textures/skybox/back.jpg"
+	};
+	skybox.Load(paths);
+
 	// init shaders
 	shaders[(int)ShaderType::Basic].Load("res/shaders/basic.shader");
 
@@ -393,6 +404,8 @@ void World::Draw() {
 		GetChunk(renderableChunksList[i])->Draw();
 	}
 	chunkAccessMutex.unlock();
+
+	skybox.Draw(renderer, camera);
 }
 
 const BlockType& World::GetBlock(const Vec3& worldCoords) {

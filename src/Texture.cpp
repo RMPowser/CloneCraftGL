@@ -1,7 +1,9 @@
 #include "Texture.h"
 #include "OpenGL.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
+#ifndef STB_IMAGE_IMPLEMENTATION
+	#define STB_IMAGE_IMPLEMENTATION
+#endif
 #include "stb/stb_image.h"
 
 Texture::Texture() {
@@ -10,6 +12,15 @@ Texture::Texture() {
 
 Texture::~Texture() {
 	GLErrorCheck(glDeleteTextures(1, &id));
+}
+
+void Texture::Bind(unsigned int slot /*= 0*/) const {
+	GLErrorCheck(glActiveTexture(GL_TEXTURE0 + slot));
+	GLErrorCheck(glBindTexture(GL_TEXTURE_2D, id));
+}
+
+void Texture::UnBind() const {
+	GLErrorCheck(glBindTexture(GL_TEXTURE_2D, 0));
 }
 
 void Texture::Load(const std::string& _filePath) {
@@ -47,13 +58,4 @@ void Texture::Load(const std::string& _filePath) {
 	}
 
 	isValid = true;
-}
-
-void Texture::Bind(unsigned int slot /*= 0*/) const {
-	GLErrorCheck(glActiveTexture(GL_TEXTURE0 + slot));
-	GLErrorCheck(glBindTexture(GL_TEXTURE_2D, id));
-}
-
-void Texture::UnBind() const {
-	GLErrorCheck(glBindTexture(GL_TEXTURE_2D, 0));
 }

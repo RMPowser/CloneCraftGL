@@ -20,30 +20,37 @@ Renderer::Renderer(Window& window) : window(window) {
 	SetClearColor((70.0f / 255), (160.0f / 255), (255.0f / 255), (255.0f / 255));
 }
 
-void Renderer::SetClearColor(float r, float g, float b, float a) {
+void Renderer::SetClearColor(float r, float g, float b, float a) const {
 	GLErrorCheck(glClearColor(r, g, b, a));
 }
 
-void Renderer::ClearScreen() {
+void Renderer::ClearScreen() const {
 	GLErrorCheck(glClear(GL_DEPTH_BUFFER_BIT));
 	GLErrorCheck(glClear(GL_COLOR_BUFFER_BIT));
 }
 
-void Renderer::DrawIndexed(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader) {
+void Renderer::DrawArrays(const VertexBufferArray& vba, unsigned int count, const ShaderProgram& shader) const {
+	vba.Bind();
+	shader.Bind();
+
+	GLErrorCheck(glDrawArrays(GL_TRIANGLES, 0, count));
+}
+
+void Renderer::DrawIndexed(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader) const {
 	vba.Bind();
 	shader.Bind();
 	
 	GLErrorCheck(glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0));
 }
 
-void Renderer::DrawIndexedInstanced(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader, unsigned int instanceCount) {
+void Renderer::DrawIndexedInstanced(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader, unsigned int instanceCount) const {
 	vba.Bind();
 	shader.Bind();
 
 	glDrawElementsInstanced(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0, instanceCount);
 }
 
-void Renderer::SwapBuffers() {
+void Renderer::SwapBuffers() const {
 	glfwSwapBuffers(window.glfwWindow);
 }
 

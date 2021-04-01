@@ -67,7 +67,7 @@ private:
 		const BlockType& GetBlock(const Vec3& blockPos) const;
 		void SetBlock(const BlockType& id, const Vec3& blockPos);
 		void Draw();
-		void LoadBlockPositionsForRendering();
+		void GenerateMesh();
 		void GenerateTerrain(TerrainGenerator& terrainGenerator, long long& seed);
 
 		inline bool IsInitialized() { return hasTerrain; }
@@ -100,12 +100,11 @@ private:
 	BlockData blockDatabase[(int)BlockType::NUM_TYPES];
 	Camera& camera;
 	Renderer& renderer;
-	unsigned int renderDistance = 8;
+	unsigned int renderDistance = 3;
 	long long seed = -1;
 	int numChunksPerFrame = 3;
 
 	TerrainGenerator terrainGenerator;
-	std::vector<Vec2> chunkLoadList;
 	std::vector<Vec2> visibleChunksList;
 	std::vector<Vec2> renderableChunksList;
 	std::vector<Vec2> chunkUnloadList;

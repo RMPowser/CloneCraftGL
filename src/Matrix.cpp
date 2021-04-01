@@ -58,14 +58,34 @@ const Vec4& Mat4::Position() const {
 	return col3;
 }
 
-float& Mat4::operator[](unsigned int i) {
-	assert(i < 16);
-	return glmMat[i % 4][i / 4];
+Vec4& Mat4::operator[](unsigned int i) {
+	assert(i < 4);
+
+	switch (i) {
+		case 0:
+			return col0;
+		case 1:
+			return col1;
+		case 2:
+			return col2;
+		case 3:
+			return col3;
+	}
 }
 
-float const& Mat4::operator[](unsigned int i) const {
-	assert(i < 16);
-	return glmMat[i % 4][i / 4];
+const Vec4& Mat4::operator[](unsigned int i) const {
+	assert(i < 4);
+
+	switch (i) {
+		case 0:
+			return col0;
+		case 1:
+			return col1;
+		case 2:
+			return col2;
+		case 3:
+			return col3;
+	}
 }
 
 Mat4& Mat4::operator=(const Mat4& other) {

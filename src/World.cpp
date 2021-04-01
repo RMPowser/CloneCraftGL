@@ -3,6 +3,8 @@
 #include <string>
 #include <thread>
 
+//#define FRUSTUM_CULLING_ENABLED
+
 World::Chunk::Layer::Layer() {
 	for (size_t i = 0; i < CHUNK_WIDTH; i++) {
 		for (size_t j = 0; j < CHUNK_WIDTH; j++) {
@@ -50,7 +52,7 @@ void World::Chunk::SetBlock(const BlockType& id, const Vec3& blockPos) {
 	}
 }
 
-void World::Chunk::LoadBlockPositionsForRendering() {
+void World::Chunk::GenerateMesh() {
 	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
 		blockPositionLists[i].clear();
 	}
@@ -245,6 +247,7 @@ void World::UpdateLoadList() {
 
 				// add the chunk to the visible list because it is potentially visible
 				visibleChunksList.push_back(chunkPos);
+				
 			}
 		}
 	}
@@ -271,9 +274,25 @@ void World::UpdateRenderableList() {
 
 	Chunk* chunk;
 	int numChunksLoaded = 0;
+	Vec3 worldChunkPos;
+
 	// for each chunk in the render list
 	for (int i = 0; i < renderableChunksList.size(); i++) {
-		if (ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance)) {
+		worldChunkPos = { renderableChunksList[i].x * CHUNK_WIDTH, 0, renderableChunksList[i].z * CHUNK_WIDTH };
+#ifdef FRUSTUM_CULLING_ENABLED
+		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance) && camera.IsPointInFrustum(worldChunkPos)) {
+#else
+		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance)) {
+#endif
+			chunkAccessMutex.lock();
+			chunk = GetChunk(renderableChunksList[i]);
+			if (!chunk->IsLoaded()) {
+				chunk->GenerateMesh();
+				numChunksLoaded++;
+			}
+			chunkAccessMutex.unlock();
+		}
+		else {
 			// add the chunk to the unload list because its out of render distance
 			chunkUnloadList.push_back(renderableChunksList[i]);
 
@@ -282,15 +301,6 @@ void World::UpdateRenderableList() {
 
 			// subtract 1 from the index since the container size changed
 			i--;
-		}
-		else {
-			chunkAccessMutex.lock();
-			chunk = GetChunk(renderableChunksList[i]);
-			if (!chunk->IsLoaded()) {
-				chunk->LoadBlockPositionsForRendering();
-				numChunksLoaded++;
-			}
-			chunkAccessMutex.unlock();
 		}
 
 	}
@@ -376,6 +386,7 @@ World::World(Camera& camera, Renderer& renderer)
 		Sleep(50);
 		while (!GetStop()) {
 			Update();
+			Sleep(16);
 		}
 	}).detach();
 }
@@ -387,14 +398,14 @@ World::~World() {
 
 void World::Update() {
 	UpdateLoadList();
-	
+	UpdateVisibleList();
+	UpdateRenderableList();
+	UpdateUnloadList();
 	// if the camera has crossed into a new chunk or a vertex update is being forced
 	if (camChunkCoordsOld != GetChunkCoords(camera.position) || forceVertexUpdate) {
 		camChunkCoordsOld = GetChunkCoords(camera.position);
 		forceVertexUpdate = false;
-		UpdateVisibleList();
-		UpdateRenderableList();
-		UpdateUnloadList();
+		
 	}
 }
 
@@ -441,14 +452,12 @@ void World::PrintDebugInfo() {
 
 	printf(
 R"(World Info										
-loadListSize:		%d						
 visibleListSize:	%d						
 renderableListSize:	%d						
 unloadListSize:		%d						
 chunkMapSize:		%d						
 
-		)", chunkLoadList.size(),
-		visibleChunksList.size(),
+		)", visibleChunksList.size(),
 		renderableChunksList.size(),
 		chunkUnloadList.size(),
 		chunkMap.size());

@@ -2,6 +2,7 @@
 
 #include "Vector.h"
 #include "Matrix.h"
+#include "OpenGL.hpp"
 #include <cmath>
 
 #define PI 3.14159265358979f
@@ -9,11 +10,18 @@
 
 
 static inline Mat4 MakeProjectionMatrix(float fovY, float aspect, float zNear, float zFar) {
-	glm::mat4 g = glm::perspective(fovY, aspect, zNear, zFar);
 	Mat4 r;
-	for (size_t i = 0; i < 16; i++) {
-		r[i] = g[i % 4][i / 4];
-	}
+	
+	assert(abs(aspect) > 0);
+
+	float tanHalfFovY = tan(fovY / 2.f);
+
+	r[0][0] = 1 / (aspect * tanHalfFovY);
+	r[1][1] = 1 / (tanHalfFovY);
+	r[2][2] = -(zFar + zNear) / (zFar - zNear);
+	r[2][3] = -1;
+	r[3][2] = -(2 * zFar * zNear) / (zFar - zNear);
+	r[3][3] = 0;
 
 	return r;
 }
@@ -53,42 +61,209 @@ static inline Mat4 MakeScaleMatrix(float x, float y, float z) {
 				0.0, 0.0, 0.0, 1.0);
 }
 
+static inline float Dot(const Vec3& a, const Vec3& b) {
+	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+
+// w component is ignored
+static inline float Dot(const Vec4& a, const Vec4& b) {
+	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+
+static inline Vec3 Normalize(const Vec3& v) {
+	if (v[0] == 0 && v[1] == 0 && v[2] == 0 && v[3] == 0) {
+		return Vec3(0, 0, 0);
+	}
+
+	float length = sqrt(Dot(v, v));
+	return Vec3(v.x / length, v.y / length, v.z / length);
+}
+
+// w component is ignored
 static inline Vec4 Normalize(const Vec4& v) {
 	if (v[0] == 0 && v[1] == 0 && v[2] == 0 && v[3] == 0) {
 		return Vec4(0, 0, 0, 0);
 	}
-	glm::vec4 g = glm::normalize(glm::vec4(v[0], v[1], v[2], v[3]));
-	Vec4 r;
-	for (size_t i = 0; i < 4; i++) {
-		r[i] = g[i];
-	}
 
-	return r;
+	float length = sqrt(Dot(v, v));
+	return Vec4(v.x / length, v.y / length, v.z / length, v.w);
 }
 
 static inline Mat4 Transpose(const Mat4& m) {
 	return Mat4 {
-		m[0], m[4], m[8], m[12],
-		m[1], m[5], m[9], m[13],
-		m[2], m[6], m[10], m[14],
-		m[3], m[7], m[11], m[15],
+		m[0][0], m[0][1], m[0][2], m[0][3],
+		m[1][0], m[1][1], m[1][2], m[1][3],
+		m[2][0], m[2][1], m[2][2], m[2][3],
+		m[3][0], m[3][1], m[3][2], m[3][3]
 	};
 }
 
 static inline Mat4 Inverse(const Mat4& m) {
-	glm::mat4 g;
-	for (size_t i = 0; i < 16; i++) {
-		g[i % 4][i / 4] = m[i];
-	}
+	Mat4 inv;
+	float det;
 
-	g = glm::transpose(glm::inverse(g));
+	inv[0][0] = (m[1][1] * m[2][2] * m[3][3] -
+				 m[1][1] * m[2][3] * m[3][2] -
+				 m[2][1] * m[1][2] * m[3][3] +
+				 m[2][1] * m[1][3] * m[3][2] +
+				 m[3][1] * m[1][2] * m[2][3] -
+				 m[3][1] * m[1][3] * m[2][2]);
 
-	Mat4 r;
-	for (size_t i = 0; i < 16; i++) {
-		r[i] = g[i % 4][i / 4];
-	}
+	inv[1][0] = (-m[1][0] * m[2][2] * m[3][3] +
+				 m[1][0] * m[2][3] * m[3][2] +
+				 m[2][0] * m[1][2] * m[3][3] -
+				 m[2][0] * m[1][3] * m[3][2] -
+				 m[3][0] * m[1][2] * m[2][3] +
+				 m[3][0] * m[1][3] * m[2][2]);
 
-	return r;
+	inv[2][0] = (m[1][0] * m[2][1] * m[3][3] -
+				 m[1][0] * m[2][3] * m[3][1] -
+				 m[2][0] * m[1][1] * m[3][3] +
+				 m[2][0] * m[1][3] * m[3][1] +
+				 m[3][0] * m[1][1] * m[2][3] -
+				 m[3][0] * m[1][3] * m[2][1]);
+
+	inv[3][0] = (-m[1][0] * m[2][1] * m[3][2] +
+				 m[1][0] * m[2][2] * m[3][1] +
+				 m[2][0] * m[1][1] * m[3][2] -
+				 m[2][0] * m[1][2] * m[3][1] -
+				 m[3][0] * m[1][1] * m[2][2] +
+				 m[3][0] * m[1][2] * m[2][1]);
+
+	inv[0][1] = (-m[0][1] * m[2][2] * m[3][3] +
+				 m[0][1] * m[2][3] * m[3][2] +
+				 m[2][1] * m[0][2] * m[3][3] -
+				 m[2][1] * m[0][3] * m[3][2] -
+				 m[3][1] * m[0][2] * m[2][3] +
+				 m[3][1] * m[0][3] * m[2][2]);
+
+	inv[1][1] = (m[0][0] * m[2][2] * m[3][3] -
+				 m[0][0] * m[2][3] * m[3][2] -
+				 m[2][0] * m[0][2] * m[3][3] +
+				 m[2][0] * m[0][3] * m[3][2] +
+				 m[3][0] * m[0][2] * m[2][3] -
+				 m[3][0] * m[0][3] * m[2][2]);
+
+	inv[2][1] = (-m[0][0] * m[2][1] * m[3][3] +
+				 m[0][0] * m[2][3] * m[3][1] +
+				 m[2][0] * m[0][1] * m[3][3] -
+				 m[2][0] * m[0][3] * m[3][1] -
+				 m[3][0] * m[0][1] * m[2][3] +
+				 m[3][0] * m[0][3] * m[2][1]);
+
+	inv[3][1] = (m[0][0] * m[2][1] * m[3][2] -
+				 m[0][0] * m[2][2] * m[3][1] -
+				 m[2][0] * m[0][1] * m[3][2] +
+				 m[2][0] * m[0][2] * m[3][1] +
+				 m[3][0] * m[0][1] * m[2][2] -
+				 m[3][0] * m[0][2] * m[2][1]);
+
+	inv[0][2] = (m[0][1] * m[1][2] * m[3][3] -
+				 m[0][1] * m[1][3] * m[3][2] -
+				 m[1][1] * m[0][2] * m[3][3] +
+				 m[1][1] * m[0][3] * m[3][2] +
+				 m[3][1] * m[0][2] * m[1][3] -
+				 m[3][1] * m[0][3] * m[1][2]);
+
+	inv[1][2] = (-m[0][0] * m[1][2] * m[3][3] +
+				 m[0][0] * m[1][3] * m[3][2] +
+				 m[1][0] * m[0][2] * m[3][3] -
+				 m[1][0] * m[0][3] * m[3][2] -
+				 m[3][0] * m[0][2] * m[1][3] +
+				 m[3][0] * m[0][3] * m[1][2]);
+
+	inv[2][2] = (m[0][0] * m[1][1] * m[3][3] -
+				 m[0][0] * m[1][3] * m[3][1] -
+				 m[1][0] * m[0][1] * m[3][3] +
+				 m[1][0] * m[0][3] * m[3][1] +
+				 m[3][0] * m[0][1] * m[1][3] -
+				 m[3][0] * m[0][3] * m[1][1]);
+
+	inv[3][2] = (-m[0][0] * m[1][1] * m[3][2] +
+				 m[0][0] * m[1][2] * m[3][1] +
+				 m[1][0] * m[0][1] * m[3][2] -
+				 m[1][0] * m[0][2] * m[3][1] -
+				 m[3][0] * m[0][1] * m[1][2] +
+				 m[3][0] * m[0][2] * m[1][1]);
+
+	inv[0][3] = (-m[0][1] * m[1][2] * m[2][3] +
+				 m[0][1] * m[1][3] * m[2][2] +
+				 m[1][1] * m[0][2] * m[2][3] -
+				 m[1][1] * m[0][3] * m[2][2] -
+				 m[2][1] * m[0][2] * m[1][3] +
+				 m[2][1] * m[0][3] * m[1][2]);
+
+	inv[1][3] = (m[0][0] * m[1][2] * m[2][3] -
+				 m[0][0] * m[1][3] * m[2][2] -
+				 m[1][0] * m[0][2] * m[2][3] +
+				 m[1][0] * m[0][3] * m[2][2] +
+				 m[2][0] * m[0][2] * m[1][3] -
+				 m[2][0] * m[0][3] * m[1][2]);
+
+	inv[2][3] = (-m[0][0] * m[1][1] * m[2][3] +
+				 m[0][0] * m[1][3] * m[2][1] +
+				 m[1][0] * m[0][1] * m[2][3] -
+				 m[1][0] * m[0][3] * m[2][1] -
+				 m[2][0] * m[0][1] * m[1][3] +
+				 m[2][0] * m[0][3] * m[1][1]);
+
+	inv[3][3] = (m[0][0] * m[1][1] * m[2][2] -
+				 m[0][0] * m[1][2] * m[2][1] -
+				 m[1][0] * m[0][1] * m[2][2] +
+				 m[1][0] * m[0][2] * m[2][1] +
+				 m[2][0] * m[0][1] * m[1][2] -
+				 m[2][0] * m[0][2] * m[1][1]);
+
+	det = m[0][0] * inv[0][0] + m[0][1] * inv[1][0] + m[0][2] * inv[2][0] + m[0][3] * inv[3][0];
+
+	if (det == 0)
+		ASSERT(false);
+
+	det = 1.0 / det;
+
+	inv[0][0] = inv[0][0] * det;
+	inv[0][1] = inv[0][1] * det;
+	inv[0][2] = inv[0][2] * det;
+	inv[0][3] = inv[0][3] * det;
+	inv[1][0] = inv[1][0] * det;
+	inv[1][1] = inv[1][1] * det;
+	inv[1][2] = inv[1][2] * det;
+	inv[1][3] = inv[1][3] * det;
+	inv[2][0] = inv[2][0] * det;
+	inv[2][1] = inv[2][1] * det;
+	inv[2][2] = inv[2][2] * det;
+	inv[2][3] = inv[2][3] * det;
+	inv[3][0] = inv[3][0] * det;
+	inv[3][1] = inv[3][1] * det;
+	inv[3][2] = inv[3][2] * det;
+	inv[3][3] = inv[3][3] * det;
+
+	return inv;
+}
+
+// v will be modified
+static inline void Negate(Vec3& v) {
+	v = { -v.x, -v.y, -v.z };
+}
+
+// v will be modified
+static inline void Negate(Vec4& v) {
+	v = { -v.x, -v.y, -v.z, 1 };
+}
+
+static inline Vec3 Cross(const Vec3& x, const Vec3& y) {
+	return Vec3(
+		x.y * y.z - y.y * x.z,
+		x.z * y.x - y.z * x.x,
+		x.x * y.y - y.x * x.y);
+}
+
+static inline Vec4 Cross(const Vec4& x, const Vec4& y) {
+	return Vec4(
+		x.y * y.z - y.y * x.z,
+		x.z * y.x - y.z * x.x,
+		x.x * y.y - y.x * x.y,
+		1);
 }
 
 /// <summary>
@@ -97,14 +272,17 @@ static inline Mat4 Inverse(const Mat4& m) {
 /// <param name="p">camera position</param>
 /// <param name="t">target position</param>
 /// <returns></returns>
-static inline Mat4 MakeLookAtMatrix(const Vec4& p, const Vec4& t) {
-	glm::mat4 g = glm::lookAt(glm::vec3(p[0], p[1], p[2]), glm::vec3(t[0], t[1], t[2]), glm::vec3(0.0f, 1.0f, 0.0f));
-	Mat4 r;
-	for (size_t i = 0; i < 16; i++) {
-		r[i] = g[i % 4][i / 4];
-	}
+static inline Mat4 MakeLookAtMatrix(const Vec3& p, const Vec3& t) {
+	Vec3 up = { 0, 1, 0 };
+	
+	Vec3 zAxis = Normalize(t - p);
+	Vec3 xAxis = Normalize(Cross(zAxis, up));
+	Vec3 yAxis = Cross(xAxis, zAxis);
 
-	return r;
+	return { xAxis.x, xAxis.y, xAxis.z, -Dot(xAxis, p),
+			xAxis.x, xAxis.y, xAxis.z, -Dot(yAxis, p),
+			xAxis.x, xAxis.y, xAxis.z, -Dot(zAxis, p),
+			0, 0, 0, 1 };
 }
 
 static inline Mat4 IdentityMatrix() {
@@ -112,11 +290,6 @@ static inline Mat4 IdentityMatrix() {
 			 0, 1, 0, 0,
 			 0, 0, 1, 0,
 			 0, 0, 0, 1 };
-}
-
-static inline Vec4 Cross(Vec4& v1, Vec4& v2) {
-	glm::vec3 g = glm::cross(glm::vec3(v1[0], v1[1], v1[2]), glm::vec3(v2[0], v2[1], v2[2]));
-	return Vec4(g[0], g[1], g[2], 0.0);
 }
 
 static inline float clamp(float value, float lowerBound, float upperBound) {

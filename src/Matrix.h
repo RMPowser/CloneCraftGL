@@ -35,8 +35,8 @@ public:
 	const Vec4& Position() const;
 
 
-	float& operator[](unsigned int i);
-	const float& operator[](unsigned int i) const;
+	Vec4& operator[](unsigned int i);
+	const Vec4& operator[](unsigned int i) const;
 	Mat4& operator=(const Mat4& other);
 	Mat4& operator+=(const Mat4& other);
 	Mat4& operator-=(const Mat4& other);

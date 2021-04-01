@@ -2,12 +2,26 @@
 
 #include "Math.hpp"
 #include "Window.h"
+#include "Plane.h"
 
 class Camera {
 private:
 	float fovY = 90;
+	float zNear = 0.01f;
+	float zFar = 1000.f;
+	float aspectRatio;
+	
+	// frustum stuff
+	enum class Planes {
+		Left,
+		Right,
+		Near
+	};
+	Plane frustum[3];
+
 
 	void MakeViewMatrix();
+	void UpdateFrustum();
 
 public:
 	Mat4 vMat;
@@ -24,6 +38,9 @@ public:
 	inline const float GetFOV() const { return fovY; }
 	void SetFOV(float fovY, float aspectRatio);
 	void RecreateProjectionMatrix(float aspectRatio);
+	bool IsPointInFrustum(const Vec3& point);
+
+	void PrintDebugInfo();
 
 	bool operator==(const Camera& other) const;
 	bool operator!=(const Camera& other) const;

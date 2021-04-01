@@ -56,11 +56,11 @@ void Player::Update(float dt) {
 			if (block != BlockType::Air) {
 				world.SetBlock(BlockType::Air, rayEnd);
 				Vec2 xz = World::GetChunkCoords(rayEnd);
-				world.GetChunk(xz)->LoadBlockPositionsForRendering();
-				world.GetChunk(Vec2(xz.x + 1, xz.z))->LoadBlockPositionsForRendering();
-				world.GetChunk(Vec2(xz.x - 1, xz.z))->LoadBlockPositionsForRendering();
-				world.GetChunk(Vec2(xz.x, xz.z + 1))->LoadBlockPositionsForRendering();
-				world.GetChunk(Vec2(xz.x, xz.z - 1))->LoadBlockPositionsForRendering();
+				world.GetChunk(xz)->GenerateMesh();
+				world.GetChunk(Vec2(xz.x + 1, xz.z))->GenerateMesh();
+				world.GetChunk(Vec2(xz.x - 1, xz.z))->GenerateMesh();
+				world.GetChunk(Vec2(xz.x, xz.z + 1))->GenerateMesh();
+				world.GetChunk(Vec2(xz.x, xz.z - 1))->GenerateMesh();
 				break;
 			}
 		}
@@ -85,7 +85,7 @@ void Player::Update(float dt) {
 				if (!WouldCollide(blockPosition)) {
 					world.SetBlock(BlockType::Grass, lastRayPosition);
 					Vec2 xz = World::GetChunkCoords(lastRayPosition);
-					world.GetChunk(xz)->LoadBlockPositionsForRendering();
+					world.GetChunk(xz)->GenerateMesh();
 					break;
 				}
 			}

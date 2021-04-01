@@ -21,7 +21,7 @@ void main() {
 #shader fragment
 #version 430
 
-layout (binding=0) uniform sampler2D _texture;
+uniform sampler2D _texture;
 
 in vec2 texCoord;
 

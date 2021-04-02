@@ -91,12 +91,11 @@ private:
 	BlockData blockDatabase[(int)BlockType::NUM_TYPES];
 	Camera& camera;
 	Renderer& renderer;
-	unsigned int renderDistance = 3;
+	unsigned int renderDistance = 8;
 	long long seed = 1;
 	int numChunksPerFrame = 3;
 
 	TerrainGenerator terrainGenerator;
-	std::vector<Vec2> visibleChunksList;
 	std::vector<Vec2> renderableChunksList;
 	std::vector<Vec2> chunkUnloadList;
 	Vec3 camPositionOld;
@@ -106,7 +105,6 @@ private:
 	bool forceVertexUpdate = true;
 
 	void UpdateLoadList();
-	void UpdateVisibleList();
 	void UpdateRenderableList();
 	void UpdateUnloadList();
 	bool ChunkAlreadyExistsIn(const std::vector<Vec2>& v, const Vec2& elem) const;

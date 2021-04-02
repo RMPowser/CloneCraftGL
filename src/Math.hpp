@@ -65,9 +65,9 @@ static inline float Dot(const Vec3& a, const Vec3& b) {
 	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 }
 
-// w component is ignored
+// w component is not ignored
 static inline float Dot(const Vec4& a, const Vec4& b) {
-	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w);
 }
 
 static inline Vec3 Normalize(const Vec3& v) {

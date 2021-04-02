@@ -17,7 +17,7 @@ private:
 	float upAxis = 0;
 	bool flyToggle = true;				// allowed to toggle flying? used to stop the game from spam-toggling flying when you press F
 	float buildRange = 5;				// how far you can reach
-	float baseSpeed = 5;				// base speed. always the same
+	float baseSpeed = 128;				// base speed. always the same
 	float speed = baseSpeed;			// modifier in determining player movement speed
 	float gravity = -9.81f * speed;
 	float jumpHeight = 1.5f;			// 1.5 blocks high

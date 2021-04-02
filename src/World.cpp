@@ -3,7 +3,7 @@
 #include <string>
 #include <thread>
 
-//#define FRUSTUM_CULLING_ENABLED
+#define FRUSTUM_CULLING_ENABLED
 
 World::Chunk::Layer::Layer() {
 	for (auto& row : blocks) {
@@ -43,7 +43,7 @@ int World::Chunk::GetHighestBlockYPerColumn(class Vec2& column) {
 }
 
 void World::GenerateChunkMesh(Chunk* chunk) {
-	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
+	for (int i = 1; i < (int)BlockType::NUM_TYPES; i++) {
 		chunk->blockPositionLists[i].clear();
 	}
 
@@ -155,41 +155,30 @@ void World::UpdateLoadList() {
 	// for each chunk around the player
 	Chunk* chunk;
 	Vec2 chunkPos;
+	Vec3 chunkbboxMin;
+	Vec3 chunkbboxMax;
+
 	for (float x = lowChunkXZ.x; x <= highChunkXZ.x; x++) {
 		for (float z = lowChunkXZ.z; z <= highChunkXZ.z; z++) {
 			chunkPos = { x, z };
 
-			if (ChunkAlreadyExistsIn(renderableChunksList, chunkPos) ||
-				ChunkAlreadyExistsIn(visibleChunksList, chunkPos) ||
-				ChunkAlreadyExistsIn(chunkUnloadList, chunkPos)) {
+			chunkbboxMin = { chunkPos.x * CHUNK_WIDTH, 0, chunkPos.z * CHUNK_WIDTH };
+			chunkbboxMax = { (chunkPos.x * CHUNK_WIDTH) + CHUNK_WIDTH, CHUNK_HEIGHT, (chunkPos.z * CHUNK_WIDTH) + CHUNK_WIDTH };
 
-				continue;
-			}
-			else if (!ChunkOutsideRenderDistance(chunkPos, camChunkCoords, sqRenderDistance)) {
+			if (!ChunkAlreadyExistsIn(renderableChunksList, chunkPos) &&
+				!ChunkAlreadyExistsIn(chunkUnloadList, chunkPos) &&
+				!ChunkOutsideRenderDistance(chunkPos, camChunkCoords, sqRenderDistance) &&
+				camera.IsBoxInFrustum(chunkbboxMin, chunkbboxMax)) {
+
 				chunk = GetChunk(chunkPos);
 				if (!chunk->hasTerrain) {
 					GenerateChunkTerrain(chunk, seed);
 				}
 
-				// add the chunk to the visible list because it is potentially visible
-				visibleChunksList.push_back(chunkPos);
+				// add the chunk to the renderable list because it is potentially visible
+				renderableChunksList.push_back(chunkPos);
 			}
 		}
-	}
-}
-
-void World::UpdateVisibleList() {
-	// TODO: frustum culling or something
-	// for each chunk in the potentially visible list
-	for (int i = 0; i < visibleChunksList.size(); i++) {
-		// add the chunk to the renderable chunk list because it is able to be seen by the player
-		renderableChunksList.push_back(visibleChunksList[i]);
-
-		// remove it from the visible list
-		visibleChunksList.erase(visibleChunksList.begin() + i);
-
-		// subtract 1 from the index since the container size changed
-		i--;
 	}
 }
 
@@ -201,16 +190,19 @@ void World::UpdateRenderableList() {
 
 	Chunk* chunk;
 	int numChunksLoaded = 0;
-	Vec3 worldChunkPos;
+
+	Vec3 chunkbboxMin;
+	Vec3 chunkbboxMax;
 
 	// for each chunk in the render list
 	for (int i = 0; i < renderableChunksList.size(); i++) {
-		worldChunkPos = { renderableChunksList[i].x * CHUNK_WIDTH, 0, renderableChunksList[i].z * CHUNK_WIDTH };
-#ifdef FRUSTUM_CULLING_ENABLED
-		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance) && camera.IsPointInFrustum(worldChunkPos)) {
-#else
-		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance)) {
-#endif
+		Vec2& chunkPos = renderableChunksList[i];
+		chunkbboxMin = { chunkPos.x * CHUNK_WIDTH, 0, chunkPos.z * CHUNK_WIDTH };
+		chunkbboxMax = { (chunkPos.x * CHUNK_WIDTH) + CHUNK_WIDTH, CHUNK_HEIGHT, (chunkPos.z * CHUNK_WIDTH) + CHUNK_WIDTH };
+
+		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance) &&
+			camera.IsBoxInFrustum(chunkbboxMin, chunkbboxMax)) {
+
 			chunk = GetChunk(renderableChunksList[i]);
 			if (!chunk->isLoaded) {
 				GenerateChunkMesh(chunk);
@@ -323,7 +315,6 @@ World::~World() {
 
 void World::Update() {
 	UpdateLoadList();
-	UpdateVisibleList();
 	UpdateRenderableList();
 	UpdateUnloadList();
 	// if the camera has crossed into a new chunk or a vertex update is being forced
@@ -412,7 +403,9 @@ const BlockType& World::GetBlock(const Vec3& worldCoords) {
 	auto chunkPosition = GetChunkCoords(worldCoords);
 
 	Chunk* chunk = GetChunk(chunkPosition);
-	if (!chunk->hasTerrain) { GenerateChunkTerrain(chunk, seed); }
+	if (!chunk->hasTerrain) {
+		GenerateChunkTerrain(chunk, seed);
+	}
 
 	return chunk->GetBlock(blockPosition);
 }
@@ -442,14 +435,12 @@ void World::PrintDebugInfo() {
 	SetConsoleCursorPosition(hStdout, position);
 
 	printf(
-R"(World Info										
-visibleListSize:	%d						
-renderableListSize:	%d						
-unloadListSize:		%d						
-chunkMapSize:		%d						
-
-		)", visibleChunksList.size(),
-		renderableChunksList.size(),
-		chunkUnloadList.size(),
-		chunkMap.size());
+R"(World Info                                       
+renderableListSize:	%d                              
+unloadListSize:		%d                              
+chunkMapSize:		%d                              
+)", 
+renderableChunksList.size(),
+chunkUnloadList.size(),
+chunkMap.size());
 }

@@ -16,7 +16,8 @@ double GetDeltaTime() {
 }
 
 int main() {
-	Vec3 spawnLocation { 1000.f, 160.0f, 1000.0f };
+	Vec3 spawnLocation { 1000.0f, 160.0f, 1000.0f };
+	Vec3 spawnRotation { 0.0f, 0.0f, 0.0f };
 
 	Window window;
 
@@ -25,7 +26,7 @@ int main() {
 	printf(glVersionInfo.c_str());
 
 	Renderer renderer(window);
-	Camera camera(spawnLocation, window);
+	Camera camera(spawnLocation, spawnRotation, window);
 	World world(camera, renderer);
 	Player player(window, world, camera);
 
@@ -38,11 +39,11 @@ int main() {
 		if (window.IsFocus()) {
 			// --- Update --- //
 			player.Update(dt);
-			player.PrintDebugInfo(dt);
+			//player.PrintDebugInfo(dt);
 			camera.Update(window.GetAspectRatio());
 			//camera.PrintDebugInfo();
 			//world.Update(); the world updates itself now
-			//world.PrintDebugInfo();
+			world.PrintDebugInfo();
 
 			// ---  Draw  --- //
 			renderer.ClearScreen();

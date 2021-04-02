@@ -15,9 +15,12 @@ private:
 	enum class Planes {
 		Left,
 		Right,
-		Near
+		Bottom,
+		Top,
+		Near,
+		Far
 	};
-	Plane frustum[3];
+	Plane frustum[6];
 
 
 	void MakeViewMatrix();
@@ -30,6 +33,7 @@ public:
 	Vec3 rotation; // for storing angles about each axis
 
 	Camera(const Vec3& spawnLocation, Window& window);
+	Camera(const Vec3& spawnLocation, const Vec3& rotation, Window& window);
 
 	Vec4 GetForwardAxis();
 	Vec4 GetRightAxis();
@@ -39,6 +43,7 @@ public:
 	void SetFOV(float fovY, float aspectRatio);
 	void RecreateProjectionMatrix(float aspectRatio);
 	bool IsPointInFrustum(const Vec3& point);
+	bool IsBoxInFrustum(const Vec3& min, const Vec3& max);
 
 	void PrintDebugInfo();
 

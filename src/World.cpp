@@ -263,9 +263,14 @@ void World::GenerateChunkTerrain(Chunk* chunk, long long& seed) {
 	chunk->hasTerrain = true;
 }
 
-void World::UpdateLoadList() {
-	std::scoped_lock lk(chunkAccessMutex);
+float World::SqDistanceFromPointToChunk(const Vec3& point, const Vec2& chunkCoords) {
+	Vec2 chunkWorldCoords = chunkCoords * CHUNK_WIDTH;
 
+	return ((point.x - chunkWorldCoords.x) * (point.x - chunkWorldCoords.x)) +
+		((point.z - chunkWorldCoords.z) * (point.z - chunkWorldCoords.z));
+}
+
+void World::UpdateLoadList() {
 	int numOfChunksLoaded = 0;
 
 	// set bounds of how far out to render based on what chunk the player is in
@@ -287,12 +292,16 @@ void World::UpdateLoadList() {
 			chunkbboxMin = { chunkPos.x * CHUNK_WIDTH, 0, chunkPos.z * CHUNK_WIDTH };
 			chunkbboxMax = { (chunkPos.x * CHUNK_WIDTH) + CHUNK_WIDTH, CHUNK_HEIGHT, (chunkPos.z * CHUNK_WIDTH) + CHUNK_WIDTH };
 
+			std::scoped_lock(mutex_renderableChunksList);
+			std::scoped_lock(mutex_chunkUnloadList);
 			if (!ChunkAlreadyExistsIn(renderableChunksList, chunkPos) &&
 				!ChunkAlreadyExistsIn(chunkUnloadList, chunkPos) &&
 				!ChunkOutsideRenderDistance(chunkPos, camChunkCoords, sqRenderDistance) &&
 				camera.IsBoxInFrustum(chunkbboxMin, chunkbboxMax)) {
 
 				chunk = GetChunk(chunkPos);
+
+				std::scoped_lock(mutex_chunkMap);
 				if (!chunk->hasTerrain) {
 					GenerateChunkTerrain(chunk, seed);
 				}
@@ -305,24 +314,26 @@ void World::UpdateLoadList() {
 }
 
 void World::UpdateRenderableList() {
-	std::scoped_lock lk(chunkAccessMutex);
-
 	Vec2 camChunkCoords = GetChunkCoords(camera.position);
 	float sqRenderDistance = renderDistance * renderDistance;
 
 	Chunk* chunk;
 	int numChunksLoaded = 0;
 
+
+	std::scoped_lock(mutex_renderableChunksList);
 	// for each chunk in the render list
 	for (int i = 0; i < renderableChunksList.size(); i++) {
 		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance)) {
 			chunk = GetChunk(renderableChunksList[i]);
+			std::scoped_lock(mutex_chunkMap);
 			if (!chunk->isLoaded) {
 				GenerateChunkMesh(chunk);
 				numChunksLoaded++;
 			}
 		}
 		else {
+			std::scoped_lock(mutex_chunkUnloadList);
 			// add the chunk to the unload list because its out of render distance
 			chunkUnloadList.push_back(renderableChunksList[i]);
 
@@ -336,11 +347,12 @@ void World::UpdateRenderableList() {
 }
 
 void World::CleanupUnusedChunks() {
-	std::scoped_lock lk(chunkAccessMutex);
 
 	// find stragglers
+	std::scoped_lock(mutex_chunkMap);
 	for (auto& pair : chunkMap) {
 		if (pair.second.hasTerrain && !pair.second.isLoaded) {
+			std::scoped_lock(mutex_chunkUnloadList);
 			if (!ChunkAlreadyExistsIn(chunkUnloadList, pair.first)) {
 				chunkUnloadList.push_back(pair.first);
 			}
@@ -348,6 +360,7 @@ void World::CleanupUnusedChunks() {
 	}
 
 	// for each chunk in the unload list
+	std::scoped_lock(mutex_chunkUnloadList);
 	for (int i = 0; i < chunkUnloadList.size(); i++) {
 		// TODO: save chunk to file eventually
 		chunkMap.erase(chunkUnloadList[i]);
@@ -381,15 +394,13 @@ bool World::ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChun
 }
 
 bool World::GetStop() {
-	std::scoped_lock lk(stopMutex);
-	bool result = stop;
-
-	return result;
+	std::scoped_lock(mutex_stopUpdating);
+	return stopUpdating;
 }
 
 void World::SetStop(bool value) {
-	std::scoped_lock lk(stopMutex);
-	stop = value;
+	std::scoped_lock(mutex_stopUpdating);
+	stopUpdating = value;
 }
 
 World::World(Camera& camera, Renderer& renderer)
@@ -436,19 +447,16 @@ void World::Update() {
 	UpdateLoadList();
 	UpdateRenderableList();
 	CleanupUnusedChunks();
-	// if the camera has crossed into a new chunk or a vertex update is being forced
-	if (camChunkCoordsOld != GetChunkCoords(camera.position) || forceVertexUpdate) {
-		camChunkCoordsOld = GetChunkCoords(camera.position);
-		forceVertexUpdate = false;
-
-	}
 }
 
 void World::Draw() {
-	//std::scoped_lock lk(chunkAccessMutex);
-
 	Vec3 chunkbboxMin;
 	Vec3 chunkbboxMax;
+
+	std::scoped_lock(mutex_renderableChunksList);
+	std::sort(renderableChunksList.begin(), renderableChunksList.end(), [&](const Vec2& a, const Vec2& b) -> bool {
+		return SqDistanceFromPointToChunk(camera.position, a) < SqDistanceFromPointToChunk(camera.position, b);
+	});
 	for (size_t i = 0; i < renderableChunksList.size(); i++) {
 		chunkbboxMin = { renderableChunksList[i].x * CHUNK_WIDTH, 0, renderableChunksList[i].z * CHUNK_WIDTH };
 		chunkbboxMax = { (renderableChunksList[i].x * CHUNK_WIDTH) + CHUNK_WIDTH, CHUNK_HEIGHT, (renderableChunksList[i].z * CHUNK_WIDTH) + CHUNK_WIDTH };
@@ -456,6 +464,7 @@ void World::Draw() {
 		if (camera.IsBoxInFrustum(chunkbboxMin, chunkbboxMax)) {
 			Chunk* chunk = GetChunk(renderableChunksList[i]);
 
+			std::scoped_lock(mutex_chunkMap);
 			Mat4 chunkMMat = chunk->mMat;
 			chunkMMat.Position().x *= CHUNK_WIDTH;
 			chunkMMat.Position().z *= CHUNK_WIDTH;
@@ -525,6 +534,7 @@ void World::SetBlock(const BlockType& id, const Vec3& worldCoords) {
 }
 
 World::Chunk* World::GetChunk(const Vec2& chunkPos) {
+	std::scoped_lock(mutex_chunkMap);
 	if (chunkMap.find(chunkPos) == chunkMap.end()) {
 		chunkMap.emplace(chunkPos, std::move(Chunk(chunkPos)));
 	}
@@ -547,6 +557,29 @@ chunkMapSize:		%d
 renderableChunksList.size(),
 chunkUnloadList.size(),
 chunkMap.size());
+}
+
+void World::ModifiedAt(const Vec3& worldCoords) {
+	Vec2 chunkCoords = GetChunkCoords(worldCoords);
+	Vec3 blockCoordsInChunk = GetBlockCoords(worldCoords);
+	
+	GenerateChunkMesh(GetChunk(chunkCoords));
+
+	if (blockCoordsInChunk.x == 0) {
+		GenerateChunkMesh(GetChunk({ chunkCoords.x - 1, chunkCoords.z }));
+	}
+
+	if (blockCoordsInChunk.x == CHUNK_WIDTH - 1) {
+		GenerateChunkMesh(GetChunk({ chunkCoords.x + 1, chunkCoords.z }));
+	}
+
+	if (blockCoordsInChunk.z == 0) {
+		GenerateChunkMesh(GetChunk({ chunkCoords.x, chunkCoords.z - 1 }));
+	}
+
+	if (blockCoordsInChunk.z == CHUNK_WIDTH - 1) {
+		GenerateChunkMesh(GetChunk({ chunkCoords.x, chunkCoords.z + 1 }));
+	}
 }
 
 void World::GenerateBlockData(const BlockType& id, BlockData* blockDatabase) {

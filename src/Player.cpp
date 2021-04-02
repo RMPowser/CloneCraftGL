@@ -55,12 +55,7 @@ void Player::Update(float dt) {
 
 			if (block != BlockType::Air) {
 				world.SetBlock(BlockType::Air, rayEnd);
-				Vec2 xz = World::GetChunkCoords(rayEnd);
-				world.GenerateChunkMesh(world.GetChunk(xz));
-				world.GenerateChunkMesh(world.GetChunk({ xz.x + 1, xz.z }));
-				world.GenerateChunkMesh(world.GetChunk({ xz.x - 1, xz.z }));
-				world.GenerateChunkMesh(world.GetChunk({ xz.x, xz.z + 1 }));
-				world.GenerateChunkMesh(world.GetChunk({ xz.x, xz.z - 1 }));
+				world.ModifiedAt(rayEnd);
 				break;
 			}
 		}
@@ -83,9 +78,8 @@ void Player::Update(float dt) {
 
 			if (block != BlockType::Air) {
 				if (!WouldCollide(blockPosition)) {
-					world.SetBlock(BlockType::Grass, lastRayPosition);
-					Vec2 xz = World::GetChunkCoords(lastRayPosition);
-					world.GenerateChunkMesh(world.GetChunk(xz));
+					world.SetBlock(BlockType::Grass, blockPosition);
+					world.ModifiedAt(blockPosition);
 					break;
 				}
 			}

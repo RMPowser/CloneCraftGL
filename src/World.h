@@ -99,38 +99,36 @@ private:
 
 
 
-// class World {
+	// class World {
 private:
-	std::mutex chunkAccessMutex;
-	std::mutex stopMutex;
-	bool stop = false;
+	Camera& camera;
+	Renderer& renderer;
 
-	SkyBox skybox;
 	ShaderProgram shaders[(int)ShaderType::NUM_TYPES];
 	Texture textures[(int)BlockType::NUM_TYPES]; // one texture for each block
 	BlockData blockDatabase[(int)BlockType::NUM_TYPES];
-	Camera& camera;
-	Renderer& renderer;
-	unsigned int renderDistance = 8;
+
+	unsigned int renderDistance = 16;
 	long long seed = 1;
-	int numChunksPerFrame = 3;
 
+	SkyBox skybox;
 	TerrainGenerator terrainGenerator;
-	std::vector<Vec2> renderableChunksList;
-	std::vector<Vec2> chunkUnloadList;
-	Vec3 camPositionOld;
-	Vec2 camChunkCoordsOld;
 
-	std::unordered_map<Vec2, Chunk> chunkMap;
-	bool forceVertexUpdate = true;
+	std::unordered_map<Vec2, Chunk> chunkMap;	std::mutex mutex_chunkMap;
+	std::vector<Vec2> renderableChunksList;		std::mutex mutex_renderableChunksList;
+	std::vector<Vec2> chunkUnloadList;			std::mutex mutex_chunkUnloadList;
+	bool stopUpdating = false;					std::mutex mutex_stopUpdating;
+
 
 	void UpdateLoadList();
 	void UpdateRenderableList();
 	void CleanupUnusedChunks();
 	bool ChunkAlreadyExistsIn(const std::vector<Vec2>& v, const Vec2& elem) const;
 	bool ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChunkCoords, float sqRenderDistance) const ;
+	float SqDistanceFromPointToChunk(const Vec3& point, const Vec2& chunkCoords);
 
 	void GenerateChunkTerrain(Chunk* chunk, long long& seed);
+	void GenerateChunkMesh(Chunk* chunk);
 	void GenerateBlockData(const BlockType& id, BlockData* blockDatabase);
 
 	bool GetStop();
@@ -145,12 +143,12 @@ public:
 	const BlockType GetBlock(const Vec3& worldCoords);
 	void SetBlock(const BlockType& id, const Vec3& worldCoords);
 	Chunk* GetChunk(const Vec2& chunkPos);
-	void GenerateChunkMesh(Chunk* chunk);
+	void ModifiedAt(const Vec3& worldCoords);
 
 	inline const BlockData& GetBlockDataFor(BlockType id) { return blockDatabase[(unsigned int)id]; };
 
 	static Vec3 GetBlockCoords(Vec3 worldCoords) { return Vec3(abs((int)worldCoords.x % CHUNK_WIDTH), worldCoords.y, abs((int)worldCoords.z % CHUNK_WIDTH)); }
 	static Vec2 GetChunkCoords(Vec3 worldCoords) { return Vec2((int)worldCoords.x / CHUNK_WIDTH, (int)worldCoords.z / CHUNK_WIDTH); }
 
-	void PrintDebugInfo();
+	void PrintDebugInfo();				
 };

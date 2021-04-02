@@ -2,10 +2,10 @@
 #version 430 core
 
 uniform mat4 pMat;
+uniform mat4 mvMat;
 
 layout (location=0) in vec4 vPos;
 layout (location=1) in vec2 tCoord;
-layout (location=2) in mat4 mvMat;
 
 out vec2 texCoord;
 

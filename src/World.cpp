@@ -13,7 +13,7 @@ World::Chunk::Layer::Layer() {
 	}
 }
 
-World::Chunk::Chunk(const Vec2& position) : highestBlockYPerColumn(){
+World::Chunk::Chunk(const Vec2& position) : highestBlockYPerColumn() {
 	for (auto& i : highestBlockYPerColumn) {
 		i.fill(0);
 	}
@@ -23,7 +23,7 @@ World::Chunk::Chunk(const Vec2& position) : highestBlockYPerColumn(){
 }
 
 World::Chunk::~Chunk() {
-	
+
 }
 
 const BlockType& World::Chunk::GetBlock(const Vec3& blockPos) const {
@@ -44,7 +44,8 @@ int World::Chunk::GetHighestBlockYPerColumn(class Vec2& column) {
 
 void World::GenerateChunkMesh(Chunk* chunk) {
 	for (int i = 1; i < (int)BlockType::NUM_TYPES; i++) {
-		chunk->blockPositionLists[i].clear();
+		chunk->verticesLists[i].clear();
+		chunk->indicesLists[i].clear();
 	}
 
 	// preallocate
@@ -52,13 +53,8 @@ void World::GenerateChunkMesh(Chunk* chunk) {
 	Vec3 blockWorldPosition;
 	float chunkWorldPosX = chunk->mMat.Position().x * CHUNK_WIDTH;
 	float chunkWorldPosZ = chunk->mMat.Position().z * CHUNK_WIDTH;
-	int blockId;
-	unsigned int offsets[(int)BlockType::NUM_TYPES] {0};
-
-	// set bounds of how far out to render based on what chunk the player is in
-	Vec2 camChunkCoords = GetChunkCoords(camera.position);
-	Vec2 lowChunkXZ(camChunkCoords.x - renderDistance, camChunkCoords.z - renderDistance);
-	Vec2 highChunkXZ(camChunkCoords.x + renderDistance, camChunkCoords.z + renderDistance);
+	BlockType blockId;
+	unsigned int offsets[(int)BlockType::NUM_TYPES] { 0 };
 
 	Vec2 column;
 
@@ -72,27 +68,153 @@ void World::GenerateChunkMesh(Chunk* chunk) {
 				blockChunkPosition = { x, y, z };
 				blockWorldPosition = { x + chunkWorldPosX, y, z + chunkWorldPosZ };
 
-				blockId = (int)GetBlock(blockWorldPosition);
+				blockId = GetBlock(blockWorldPosition);
 
 				// don't render air
-				if (blockId == (int)BlockType::Air) {
+				if (blockId == BlockType::Air) {
 					continue;
 				}
 
-				/////////////////////////////////////////////////////
-				// decide if we actually need to render each block //
-				/////////////////////////////////////////////////////
-				if (GetBlock({ blockWorldPosition.x, blockWorldPosition.y + 1, blockWorldPosition.z }) == BlockType::Air ||
-					GetBlock({ blockWorldPosition.x, blockWorldPosition.y - 1, blockWorldPosition.z }) == BlockType::Air ||
-					GetBlock({ blockWorldPosition.x + 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air ||
-					GetBlock({ blockWorldPosition.x - 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air ||
-					GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z + 1 }) == BlockType::Air ||
-					GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z - 1 }) == BlockType::Air) {
-					
-					chunk->blockPositionLists[blockId].push_back(blockChunkPosition);
+				/////////////////////////////////////////
+				// decide which faces we actually need //
+				/////////////////////////////////////////
+
+				// top
+				if (GetBlock({ blockWorldPosition.x, blockWorldPosition.y + 1, blockWorldPosition.z }) == BlockType::Air) {
+					auto verts = GetBlockDataFor(blockId).GetFaceVertices(BlockFaces::top);
+					auto inds = GetBlockDataFor(blockId).GetFaceIndices(BlockFaces::top);
+
+					// save the offset for the indices for this block type
+					offsets[(int)blockId] = chunk->verticesLists[(int)blockId].size();
+
+					for (int i = 0; i < 4; i++) { // hard coded 4 because each block face always has 4 verts
+						Vertex v(verts[i]);
+						v.position.x += x;
+						v.position.y += y;
+						v.position.z += z;
+						chunk->verticesLists[(int)blockId].push_back(v);
+					}
+
+					// account for the offset into vertices vector and store the indices for later
+					for (int i = 0; i < 6; i++) { // hard coded 6 because each block face always has 2 triangles
+						unsigned int ind(inds[i] + offsets[(int)blockId]);
+						chunk->indicesLists[(int)blockId].push_back(ind);
+					}
 				}
-				else {
-					y = 0; // skip to the next column
+
+				// bottom
+				if (GetBlock({ blockWorldPosition.x, blockWorldPosition.y - 1, blockWorldPosition.z }) == BlockType::Air) {
+					auto verts = GetBlockDataFor(blockId).GetFaceVertices(BlockFaces::bottom);
+					auto inds = GetBlockDataFor(blockId).GetFaceIndices(BlockFaces::bottom);
+
+					// save the offset for the indices for this block type
+					offsets[(int)blockId] = chunk->verticesLists[(int)blockId].size();
+
+					for (int i = 0; i < 4; i++) { // hard coded 4 because each block face always has 4 verts
+						Vertex v(verts[i]);
+						v.position.x += x;
+						v.position.y += y;
+						v.position.z += z;
+						chunk->verticesLists[(int)blockId].push_back(v);
+					}
+
+					// account for the offset into vertices vector and store the indices for later
+					for (int i = 0; i < 6; i++) { // hard coded 6 because each block face always has 2 triangles
+						unsigned int ind(inds[i] + offsets[(int)blockId]);
+						chunk->indicesLists[(int)blockId].push_back(ind);
+					}
+				}
+
+				// east
+				if (GetBlock({ blockWorldPosition.x + 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air) {
+					auto verts = GetBlockDataFor(blockId).GetFaceVertices(BlockFaces::east);
+					auto inds = GetBlockDataFor(blockId).GetFaceIndices(BlockFaces::east);
+
+					// save the offset for the indices for this block type
+					offsets[(int)blockId] = chunk->verticesLists[(int)blockId].size();
+
+					for (int i = 0; i < 4; i++) { // hard coded 4 because each block face always has 4 verts
+						Vertex v(verts[i]);
+						v.position.x += x;
+						v.position.y += y;
+						v.position.z += z;
+						chunk->verticesLists[(int)blockId].push_back(v);
+					}
+
+					// account for the offset into vertices vector and store the indices for later
+					for (int i = 0; i < 6; i++) { // hard coded 6 because each block face always has 2 triangles
+						unsigned int ind(inds[i] + offsets[(int)blockId]);
+						chunk->indicesLists[(int)blockId].push_back(ind);
+					}
+				}
+
+				// west
+				if (GetBlock({ blockWorldPosition.x - 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air) {
+					auto verts = GetBlockDataFor(blockId).GetFaceVertices(BlockFaces::west);
+					auto inds = GetBlockDataFor(blockId).GetFaceIndices(BlockFaces::west);
+
+					// save the offset for the indices for this block type
+					offsets[(int)blockId] = chunk->verticesLists[(int)blockId].size();
+
+					for (int i = 0; i < 4; i++) { // hard coded 4 because each block face always has 4 verts
+						Vertex v(verts[i]);
+						v.position.x += x;
+						v.position.y += y;
+						v.position.z += z;
+						chunk->verticesLists[(int)blockId].push_back(v);
+					}
+
+					// account for the offset into vertices vector and store the indices for later
+					for (int i = 0; i < 6; i++) { // hard coded 6 because each block face always has 2 triangles
+						unsigned int ind(inds[i] + offsets[(int)blockId]);
+						chunk->indicesLists[(int)blockId].push_back(ind);
+					}
+				}
+
+				// north
+				if (GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z + 1 }) == BlockType::Air) {
+					auto verts = GetBlockDataFor(blockId).GetFaceVertices(BlockFaces::north);
+					auto inds = GetBlockDataFor(blockId).GetFaceIndices(BlockFaces::north);
+
+					// save the offset for the indices for this block type
+					offsets[(int)blockId] = chunk->verticesLists[(int)blockId].size();
+
+					for (int i = 0; i < 4; i++) { // hard coded 4 because each block face always has 4 verts
+						Vertex v(verts[i]);
+						v.position.x += x;
+						v.position.y += y;
+						v.position.z += z;
+						chunk->verticesLists[(int)blockId].push_back(v);
+					}
+
+					// account for the offset into vertices vector and store the indices for later
+					for (int i = 0; i < 6; i++) { // hard coded 6 because each block face always has 2 triangles
+						unsigned int ind(inds[i] + offsets[(int)blockId]);
+						chunk->indicesLists[(int)blockId].push_back(ind);
+					}
+				}
+
+				// south
+				if (GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z - 1 }) == BlockType::Air) {
+					auto verts = GetBlockDataFor(blockId).GetFaceVertices(BlockFaces::south);
+					auto inds = GetBlockDataFor(blockId).GetFaceIndices(BlockFaces::south);
+
+					// save the offset for the indices for this block type
+					offsets[(int)blockId] = chunk->verticesLists[(int)blockId].size();
+
+					for (int i = 0; i < 4; i++) { // hard coded 4 because each block face always has 4 verts
+						Vertex v(verts[i]);
+						v.position.x += x;
+						v.position.y += y;
+						v.position.z += z;
+						chunk->verticesLists[(int)blockId].push_back(v);
+					}
+
+					// account for the offset into vertices vector and store the indices for later
+					for (int i = 0; i < 6; i++) { // hard coded 6 because each block face always has 2 triangles
+						unsigned int ind(inds[i] + offsets[(int)blockId]);
+						chunk->indicesLists[(int)blockId].push_back(ind);
+					}
 				}
 			}
 		}
@@ -116,7 +238,7 @@ void World::GenerateChunkTerrain(Chunk* chunk, long long& seed) {
 			else {
 				chunk->SetBlock(BlockType::Grass, Vec3(x, y, z));
 			}
-			
+
 			// set every block below the surface as well
 			y--;
 			while (y >= 0) {
@@ -289,10 +411,8 @@ World::World(Camera& camera, Renderer& renderer)
 
 	// init block database
 	blockDatabase[(int)BlockType::Air].isCollidable = false;
-	blockDatabase[(int)BlockType::Grass].isCollidable = true;
-	renderer.LoadModel("res/models/blocks/BasicBlock.obj", blockDatabase[(int)BlockType::Grass].vertices, blockDatabase[(int)BlockType::Grass].indices);
-	blockDatabase[(int)BlockType::Dirt].isCollidable = true;
-	renderer.LoadModel("res/models/blocks/BasicBlock.obj", blockDatabase[(int)BlockType::Dirt].vertices, blockDatabase[(int)BlockType::Dirt].indices);
+	blockDatabase[(int)BlockType::Grass].isCollidable = true; GenerateBlockData(BlockType::Grass, blockDatabase);
+	blockDatabase[(int)BlockType::Dirt].isCollidable = true; GenerateBlockData(BlockType::Dirt, blockDatabase);
 
 	// init textures
 	textures[(int)BlockType::Grass].Load("res/textures/blocks/Grass.png");
@@ -320,12 +440,12 @@ void World::Update() {
 	if (camChunkCoordsOld != GetChunkCoords(camera.position) || forceVertexUpdate) {
 		camChunkCoordsOld = GetChunkCoords(camera.position);
 		forceVertexUpdate = false;
-		
+
 	}
 }
 
 void World::Draw() {
-	std::scoped_lock lk(chunkAccessMutex);
+	//std::scoped_lock lk(chunkAccessMutex);
 
 	Vec3 chunkbboxMin;
 	Vec3 chunkbboxMax;
@@ -336,46 +456,23 @@ void World::Draw() {
 		if (camera.IsBoxInFrustum(chunkbboxMin, chunkbboxMax)) {
 			Chunk* chunk = GetChunk(renderableChunksList[i]);
 
-			Vec3 blockWorldCoords;
-			float chunkWorldPosX = chunk->mMat.Position().x * CHUNK_WIDTH;
-			float chunkWorldPosZ = chunk->mMat.Position().z * CHUNK_WIDTH;
-			Mat4 mvMat;
+			Mat4 chunkMMat = chunk->mMat;
+			chunkMMat.Position().x *= CHUNK_WIDTH;
+			chunkMMat.Position().z *= CHUNK_WIDTH;
 
-			std::vector<Mat4> mvMats;
+			Mat4 mvMat = camera.vMat * chunkMMat;
 
 			// draw each type of block separately
 			for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
-				mvMats.clear();
-
-				auto& blockPositions = chunk->blockPositionLists[i];
-
-				auto& vertices = blockDatabase[i].vertices;
-				auto& indices = blockDatabase[i].indices;
-
-				for (size_t j = 0; j < blockPositions.size(); j++) {
-					blockWorldCoords = { blockPositions[j].x + chunkWorldPosX, blockPositions[j].y, blockPositions[j].z + chunkWorldPosZ };
-
-					mvMat = camera.vMat * MakeTranslationMatrix({ blockWorldCoords, 1 });
-
-					mvMats.push_back(mvMat);
-				}
+				auto& vertices = chunk->verticesLists[i];
+				auto& indices = chunk->indicesLists[i];
 
 				VertexBufferArray va;
-
 				VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
 				VertexBufferLayout layout;
 				layout.Push<float>(3, false, 0);
 				layout.Push<float>(2, true, 0);
-
-				VertexBuffer matrices(mvMats.data(), mvMats.size() * sizeof(Mat4));
-				VertexBufferLayout layoutMatrices;
-				layoutMatrices.Push<float>(4, false, 1);
-				layoutMatrices.Push<float>(4, false, 1);
-				layoutMatrices.Push<float>(4, false, 1);
-				layoutMatrices.Push<float>(4, false, 1); // divisor of 1 because this stuff changes per instance
-
 				va.AddBuffer(vb, layout);
-				va.AddBuffer(matrices, layoutMatrices);
 
 				IndexBuffer ib(indices.data(), indices.size());
 
@@ -391,8 +488,9 @@ void World::Draw() {
 				}
 
 				shader.SetUniformMatrix4fv("pMat", camera.pMat);
+				shader.SetUniformMatrix4fv("mvMat", mvMat);
 
-				renderer.DrawIndexedInstanced(va, ib, shader, mvMats.size());
+				renderer.DrawIndexed(va, ib, shader);
 			}
 		}
 	}
@@ -400,8 +498,8 @@ void World::Draw() {
 	skybox.Draw(renderer, camera);
 }
 
-const BlockType& World::GetBlock(const Vec3& worldCoords) {
-	if (worldCoords.y >= CHUNK_HEIGHT || worldCoords.y < 0) {
+const BlockType World::GetBlock(const Vec3& worldCoords) {
+	if (worldCoords.y > CHUNK_HEIGHT || worldCoords.y < 0) {
 		return BlockType::Dirt;
 	}
 
@@ -441,12 +539,104 @@ void World::PrintDebugInfo() {
 	SetConsoleCursorPosition(hStdout, position);
 
 	printf(
-R"(World Info                                       
+		R"(World Info                                       
 renderableListSize:	%d                              
 unloadListSize:		%d                              
 chunkMapSize:		%d                              
-)", 
+)",
 renderableChunksList.size(),
 chunkUnloadList.size(),
 chunkMap.size());
+}
+
+void World::GenerateBlockData(const BlockType& id, BlockData* blockDatabase) {
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].vertices[0].position = { 0, 1, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].vertices[1].position = { 1, 1, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].vertices[2].position = { 1, 0, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].vertices[3].position = { 0, 0, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].vertices[0].texCoord = { 1, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].vertices[1].texCoord = { 0, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].vertices[2].texCoord = { 0, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].vertices[3].texCoord = { 1, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].indices[0] = 2;
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].indices[1] = 1;
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].indices[2] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].indices[3] = 0;
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].indices[4] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::north].indices[5] = 1;
+
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].vertices[0].position = { 1, 1, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].vertices[1].position = { 0, 1, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].vertices[2].position = { 0, 0, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].vertices[3].position = { 1, 0, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].vertices[0].texCoord = { 1, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].vertices[1].texCoord = { 0, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].vertices[2].texCoord = { 0, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].vertices[3].texCoord = { 1, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].indices[0] = 2;
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].indices[1] = 1;
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].indices[2] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].indices[3] = 0;
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].indices[4] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::south].indices[5] = 1;
+
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].vertices[0].position = { 1, 1, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].vertices[1].position = { 1, 1, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].vertices[2].position = { 1, 0, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].vertices[3].position = { 1, 0, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].vertices[0].texCoord = { 1, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].vertices[1].texCoord = { 0, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].vertices[2].texCoord = { 0, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].vertices[3].texCoord = { 1, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].indices[0] = 2;
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].indices[1] = 1;
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].indices[2] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].indices[3] = 0;
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].indices[4] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::east].indices[5] = 1;
+
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].vertices[0].position = { 0, 1, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].vertices[1].position = { 0, 1, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].vertices[2].position = { 0, 0, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].vertices[3].position = { 0, 0, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].vertices[0].texCoord = { 1, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].vertices[1].texCoord = { 0, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].vertices[2].texCoord = { 0, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].vertices[3].texCoord = { 1, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].indices[0] = 2;
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].indices[1] = 1;
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].indices[2] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].indices[3] = 0;
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].indices[4] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::west].indices[5] = 1;
+
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].vertices[0].position = { 0, 1, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].vertices[1].position = { 1, 1, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].vertices[2].position = { 1, 1, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].vertices[3].position = { 0, 1, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].vertices[0].texCoord = { 1, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].vertices[1].texCoord = { 0, 0.666667 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].vertices[2].texCoord = { 0, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].vertices[3].texCoord = { 1, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].indices[0] = 2;
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].indices[1] = 1;
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].indices[2] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].indices[3] = 0;
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].indices[4] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::top].indices[5] = 1;
+
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].vertices[0].position = { 0, 0, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].vertices[1].position = { 1, 0, 1 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].vertices[2].position = { 1, 0, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].vertices[3].position = { 0, 0, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].vertices[0].texCoord = { 0, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].vertices[1].texCoord = { 1, 0.333333 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].vertices[2].texCoord = { 1, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].vertices[3].texCoord = { 0, 0 };
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].indices[0] = 2;
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].indices[1] = 1;
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].indices[2] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].indices[3] = 0;
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].indices[4] = 3;
+	blockDatabase[(int)id].faces[(int)BlockFaces::bottom].indices[5] = 1;
 }

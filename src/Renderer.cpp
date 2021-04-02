@@ -8,6 +8,8 @@
 #include <iostream>
 #include <string>
 
+#define RENDER_MODE GL_TRIANGLES
+
 Renderer::Renderer(Window& window) : window(window) {
 	glfwSwapInterval(0); // vsync
 	GLErrorCheck(glEnable(GL_CULL_FACE));
@@ -33,21 +35,21 @@ void Renderer::DrawArrays(const VertexBufferArray& vba, unsigned int count, cons
 	vba.Bind();
 	shader.Bind();
 
-	GLErrorCheck(glDrawArrays(GL_TRIANGLES, 0, count));
+	GLErrorCheck(glDrawArrays(RENDER_MODE, 0, count));
 }
 
 void Renderer::DrawIndexed(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader) const {
 	vba.Bind();
 	shader.Bind();
 	
-	GLErrorCheck(glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0));
+	GLErrorCheck(glDrawElements(RENDER_MODE, ib.GetCount(), GL_UNSIGNED_INT, 0));
 }
 
 void Renderer::DrawIndexedInstanced(const VertexBufferArray& vba, const IndexBuffer& ib, const ShaderProgram& shader, unsigned int instanceCount) const {
 	vba.Bind();
 	shader.Bind();
 
-	glDrawElementsInstanced(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, 0, instanceCount);
+	glDrawElementsInstanced(RENDER_MODE, ib.GetCount(), GL_UNSIGNED_INT, 0, instanceCount);
 }
 
 void Renderer::SwapBuffers() const {

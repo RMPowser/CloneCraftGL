@@ -52,8 +52,9 @@ private:
 		std::array<std::array<int, CHUNK_WIDTH>, CHUNK_WIDTH> highestBlockYPerColumn;
 
 	public:
+		std::vector<Vertex> verticesLists[(int)BlockType::NUM_TYPES];
+		std::vector<unsigned int> indicesLists[(int)BlockType::NUM_TYPES];
 		Mat4 mMat;
-		std::vector<Vec3> blockPositionLists[(int)BlockType::NUM_TYPES];
 		bool hasTerrain = false;
 		bool isLoaded = false;
 
@@ -68,11 +69,30 @@ private:
 
 
 
+	struct BlockFace {
+		Vertex vertices[4];
+		unsigned int indices[6];
+	};
 
-	struct BlockData {
+	enum class BlockFaces {
+		north,
+		south,
+		east,
+		west,
+		top,
+		bottom
+	};
+
+	class BlockData {
+		friend class World;
+	private:
+		BlockFace faces[6];
+
+	public:
 		bool isCollidable = false;
-		std::vector<Vertex> vertices;
-		std::vector<unsigned int> indices;
+
+		inline const Vertex* GetFaceVertices(const BlockFaces& face) const { return faces[(int)face].vertices; }
+		inline const unsigned int* GetFaceIndices(const BlockFaces& face) const { return faces[(int)face].indices; }
 	};
 
 
@@ -111,6 +131,7 @@ private:
 	bool ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChunkCoords, float sqRenderDistance) const ;
 
 	void GenerateChunkTerrain(Chunk* chunk, long long& seed);
+	void GenerateBlockData(const BlockType& id, BlockData* blockDatabase);
 
 	bool GetStop();
 	void SetStop(bool value);
@@ -121,12 +142,12 @@ public:
 
 	void Update();
 	void Draw();
-	const BlockType& GetBlock(const Vec3& worldCoords);
+	const BlockType GetBlock(const Vec3& worldCoords);
 	void SetBlock(const BlockType& id, const Vec3& worldCoords);
 	Chunk* GetChunk(const Vec2& chunkPos);
 	void GenerateChunkMesh(Chunk* chunk);
 
-	inline const BlockData& GetBlockDataFor(BlockType id) const { return blockDatabase[(unsigned int)id]; };
+	inline const BlockData& GetBlockDataFor(BlockType id) { return blockDatabase[(unsigned int)id]; };
 
 	static Vec3 GetBlockCoords(Vec3 worldCoords) { return Vec3(abs((int)worldCoords.x % CHUNK_WIDTH), worldCoords.y, abs((int)worldCoords.z % CHUNK_WIDTH)); }
 	static Vec2 GetChunkCoords(Vec3 worldCoords) { return Vec2((int)worldCoords.x / CHUNK_WIDTH, (int)worldCoords.z / CHUNK_WIDTH); }

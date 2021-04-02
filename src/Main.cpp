@@ -39,11 +39,11 @@ int main() {
 		if (window.IsFocus()) {
 			// --- Update --- //
 			player.Update(dt);
-			//player.PrintDebugInfo(dt);
+			player.PrintDebugInfo(dt);
 			camera.Update(window.GetAspectRatio());
 			//camera.PrintDebugInfo();
 			//world.Update(); the world updates itself now
-			world.PrintDebugInfo();
+			//world.PrintDebugInfo();
 
 			// ---  Draw  --- //
 			renderer.ClearScreen();

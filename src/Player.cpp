@@ -162,7 +162,7 @@ void Player::Update(float dt) {
 
 
 	camera.position = mMat.Position();
-	camera.position.y += height;
+	camera.position.y += height - 0.05;
 }
 
 void Player::Collide(const Vec3& vel) {
@@ -180,7 +180,7 @@ void Player::Collide(const Vec3& vel) {
 
 				if (world.GetBlockDataFor(block).isCollidable) {
 					if (vel.y > 0) {
-						mMat.Position().y = y - (height + 0.1f);
+						mMat.Position().y = y - height;
 						fallingSpeed = 0;
 					}
 					else if (vel.y < 0) {

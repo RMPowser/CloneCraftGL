@@ -106,7 +106,7 @@ private:
 
 	void UpdateLoadList();
 	void UpdateRenderableList();
-	void UpdateUnloadList();
+	void CleanupUnusedChunks();
 	bool ChunkAlreadyExistsIn(const std::vector<Vec2>& v, const Vec2& elem) const;
 	bool ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChunkCoords, float sqRenderDistance) const ;
 

@@ -191,18 +191,9 @@ void World::UpdateRenderableList() {
 	Chunk* chunk;
 	int numChunksLoaded = 0;
 
-	Vec3 chunkbboxMin;
-	Vec3 chunkbboxMax;
-
 	// for each chunk in the render list
 	for (int i = 0; i < renderableChunksList.size(); i++) {
-		Vec2& chunkPos = renderableChunksList[i];
-		chunkbboxMin = { chunkPos.x * CHUNK_WIDTH, 0, chunkPos.z * CHUNK_WIDTH };
-		chunkbboxMax = { (chunkPos.x * CHUNK_WIDTH) + CHUNK_WIDTH, CHUNK_HEIGHT, (chunkPos.z * CHUNK_WIDTH) + CHUNK_WIDTH };
-
-		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance) &&
-			camera.IsBoxInFrustum(chunkbboxMin, chunkbboxMax)) {
-
+		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance)) {
 			chunk = GetChunk(renderableChunksList[i]);
 			if (!chunk->isLoaded) {
 				GenerateChunkMesh(chunk);
@@ -219,12 +210,20 @@ void World::UpdateRenderableList() {
 			// subtract 1 from the index since the container size changed
 			i--;
 		}
-
 	}
 }
 
-void World::UpdateUnloadList() {
+void World::CleanupUnusedChunks() {
 	std::scoped_lock lk(chunkAccessMutex);
+
+	// find stragglers
+	for (auto& pair : chunkMap) {
+		if (pair.second.hasTerrain && !pair.second.isLoaded) {
+			if (!ChunkAlreadyExistsIn(chunkUnloadList, pair.first)) {
+				chunkUnloadList.push_back(pair.first);
+			}
+		}
+	}
 
 	// for each chunk in the unload list
 	for (int i = 0; i < chunkUnloadList.size(); i++) {
@@ -316,7 +315,7 @@ World::~World() {
 void World::Update() {
 	UpdateLoadList();
 	UpdateRenderableList();
-	UpdateUnloadList();
+	CleanupUnusedChunks();
 	// if the camera has crossed into a new chunk or a vertex update is being forced
 	if (camChunkCoordsOld != GetChunkCoords(camera.position) || forceVertexUpdate) {
 		camChunkCoordsOld = GetChunkCoords(camera.position);
@@ -328,66 +327,73 @@ void World::Update() {
 void World::Draw() {
 	std::scoped_lock lk(chunkAccessMutex);
 
+	Vec3 chunkbboxMin;
+	Vec3 chunkbboxMax;
 	for (size_t i = 0; i < renderableChunksList.size(); i++) {
-		Chunk* chunk = GetChunk(renderableChunksList[i]);
+		chunkbboxMin = { renderableChunksList[i].x * CHUNK_WIDTH, 0, renderableChunksList[i].z * CHUNK_WIDTH };
+		chunkbboxMax = { (renderableChunksList[i].x * CHUNK_WIDTH) + CHUNK_WIDTH, CHUNK_HEIGHT, (renderableChunksList[i].z * CHUNK_WIDTH) + CHUNK_WIDTH };
 
-		Vec3 blockWorldCoords;
-		float chunkWorldPosX = chunk->mMat.Position().x * CHUNK_WIDTH;
-		float chunkWorldPosZ = chunk->mMat.Position().z * CHUNK_WIDTH;
-		Mat4 mvMat;
+		if (camera.IsBoxInFrustum(chunkbboxMin, chunkbboxMax)) {
+			Chunk* chunk = GetChunk(renderableChunksList[i]);
 
-		std::vector<Mat4> mvMats;
+			Vec3 blockWorldCoords;
+			float chunkWorldPosX = chunk->mMat.Position().x * CHUNK_WIDTH;
+			float chunkWorldPosZ = chunk->mMat.Position().z * CHUNK_WIDTH;
+			Mat4 mvMat;
 
-		// draw each type of block separately
-		for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
-			mvMats.clear();
+			std::vector<Mat4> mvMats;
 
-			auto& blockPositions = chunk->blockPositionLists[i];
+			// draw each type of block separately
+			for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
+				mvMats.clear();
 
-			auto& vertices = blockDatabase[i].vertices;
-			auto& indices = blockDatabase[i].indices;
+				auto& blockPositions = chunk->blockPositionLists[i];
 
-			for (size_t j = 0; j < blockPositions.size(); j++) {
-				blockWorldCoords = { blockPositions[j].x + chunkWorldPosX, blockPositions[j].y, blockPositions[j].z + chunkWorldPosZ };
+				auto& vertices = blockDatabase[i].vertices;
+				auto& indices = blockDatabase[i].indices;
 
-				mvMat = camera.vMat * MakeTranslationMatrix({ blockWorldCoords, 1 });
+				for (size_t j = 0; j < blockPositions.size(); j++) {
+					blockWorldCoords = { blockPositions[j].x + chunkWorldPosX, blockPositions[j].y, blockPositions[j].z + chunkWorldPosZ };
 
-				mvMats.push_back(mvMat);
+					mvMat = camera.vMat * MakeTranslationMatrix({ blockWorldCoords, 1 });
+
+					mvMats.push_back(mvMat);
+				}
+
+				VertexBufferArray va;
+
+				VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
+				VertexBufferLayout layout;
+				layout.Push<float>(3, false, 0);
+				layout.Push<float>(2, true, 0);
+
+				VertexBuffer matrices(mvMats.data(), mvMats.size() * sizeof(Mat4));
+				VertexBufferLayout layoutMatrices;
+				layoutMatrices.Push<float>(4, false, 1);
+				layoutMatrices.Push<float>(4, false, 1);
+				layoutMatrices.Push<float>(4, false, 1);
+				layoutMatrices.Push<float>(4, false, 1); // divisor of 1 because this stuff changes per instance
+
+				va.AddBuffer(vb, layout);
+				va.AddBuffer(matrices, layoutMatrices);
+
+				IndexBuffer ib(indices.data(), indices.size());
+
+				ShaderProgram& shader = shaders[(int)ShaderType::Basic];
+				shader.Bind();
+
+				if (textures[i].isValid) {
+					textures[i].Bind(0);
+					shader.SetUniform1i("_texture", 0);
+				}
+				else {
+					ASSERT(false);
+				}
+
+				shader.SetUniformMatrix4fv("pMat", camera.pMat);
+
+				renderer.DrawIndexedInstanced(va, ib, shader, mvMats.size());
 			}
-
-			VertexBufferArray va;
-
-			VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
-			VertexBufferLayout layout;
-			layout.Push<float>(3, false, 0);
-			layout.Push<float>(2, true, 0);
-
-			VertexBuffer matrices(mvMats.data(), mvMats.size() * sizeof(Mat4));
-			VertexBufferLayout layoutMatrices;
-			layoutMatrices.Push<float>(4, false, 1);
-			layoutMatrices.Push<float>(4, false, 1);
-			layoutMatrices.Push<float>(4, false, 1);
-			layoutMatrices.Push<float>(4, false, 1); // divisor of 1 because this stuff changes per instance
-
-			va.AddBuffer(vb, layout);
-			va.AddBuffer(matrices, layoutMatrices);
-
-			IndexBuffer ib(indices.data(), indices.size());
-
-			ShaderProgram& shader = shaders[(int)ShaderType::Basic];
-			shader.Bind();
-
-			if (textures[i].isValid) {
-				textures[i].Bind(0);
-				shader.SetUniform1i("_texture", 0);
-			}
-			else {
-				ASSERT(false);
-			}
-
-			shader.SetUniformMatrix4fv("pMat", camera.pMat);
-
-			renderer.DrawIndexedInstanced(va, ib, shader, mvMats.size());
 		}
 	}
 

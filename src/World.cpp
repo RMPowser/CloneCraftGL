@@ -6,14 +6,18 @@
 //#define FRUSTUM_CULLING_ENABLED
 
 World::Chunk::Layer::Layer() {
-	for (size_t i = 0; i < CHUNK_WIDTH; i++) {
-		for (size_t j = 0; j < CHUNK_WIDTH; j++) {
-			blocks[i][j] = BlockType::Air;
+	for (auto& row : blocks) {
+		for (auto& block : row) {
+			block = BlockType::Air;
 		}
 	}
 }
 
-World::Chunk::Chunk(const Vec2& position, World& world) : world(world) {
+World::Chunk::Chunk(const Vec2& position) : highestBlockYPerColumn(){
+	for (auto& i : highestBlockYPerColumn) {
+		i.fill(0);
+	}
+
 	mMat.Position().x = position.x;
 	mMat.Position().z = position.z;
 }
@@ -22,65 +26,53 @@ World::Chunk::~Chunk() {
 	
 }
 
-const bool World::Chunk::IsBlockOutOfBounds(const Vec3& blockPos) const {
-	if (blockPos.x < 0 ||
-		blockPos.y < 0 ||
-		blockPos.z < 0 ||
-		blockPos.x >= CHUNK_WIDTH ||
-		blockPos.y >= CHUNK_HEIGHT ||
-		blockPos.z >= CHUNK_WIDTH) {
-		return true;
-	}
-
-	return false;
-}
-
 const BlockType& World::Chunk::GetBlock(const Vec3& blockPos) const {
-	if (IsBlockOutOfBounds(blockPos)) {
-		return BlockType::Dirt;
-	}
-
 	return layers[(int)blockPos.y].GetBlock(blockPos);
 }
 
 void World::Chunk::SetBlock(const BlockType& id, const Vec3& blockPos) {
-	if (!IsBlockOutOfBounds(blockPos)) {
-		(layers[(int)blockPos.y].SetBlock(id, blockPos));
-		if (blockPos.y > highestBlockYPerColumn[(int)blockPos.x][(int)blockPos.z]) {
-			highestBlockYPerColumn[(int)blockPos.x][(int)blockPos.z] = (int)blockPos.y;
-		}
+	(layers[(int)blockPos.y].SetBlock(id, blockPos));
+
+	if (blockPos.y > highestBlockYPerColumn[(int)blockPos.x][(int)blockPos.z]) {
+		highestBlockYPerColumn[(int)blockPos.x][(int)blockPos.z] = (int)blockPos.y;
 	}
 }
 
-void World::Chunk::GenerateMesh() {
+int World::Chunk::GetHighestBlockYPerColumn(class Vec2& column) {
+	return highestBlockYPerColumn[(int)column.x][(int)column.z];
+}
+
+void World::GenerateChunkMesh(Chunk* chunk) {
 	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
-		blockPositionLists[i].clear();
+		chunk->blockPositionLists[i].clear();
 	}
 
 	// preallocate
 	Vec3 blockChunkPosition;
 	Vec3 blockWorldPosition;
-	float chunkWorldPosX = mMat.Position().x * CHUNK_WIDTH;
-	float chunkWorldPosZ = mMat.Position().z * CHUNK_WIDTH;
+	float chunkWorldPosX = chunk->mMat.Position().x * CHUNK_WIDTH;
+	float chunkWorldPosZ = chunk->mMat.Position().z * CHUNK_WIDTH;
 	int blockId;
-	unsigned int offsets[(int)BlockType::NUM_TYPES];
+	unsigned int offsets[(int)BlockType::NUM_TYPES] {0};
 
 	// set bounds of how far out to render based on what chunk the player is in
-	Vec2 camChunkCoords = GetChunkCoords(world.camera.position);
-	Vec2 lowChunkXZ(camChunkCoords.x - world.renderDistance, camChunkCoords.z - world.renderDistance);
-	Vec2 highChunkXZ(camChunkCoords.x + world.renderDistance, camChunkCoords.z + world.renderDistance);
+	Vec2 camChunkCoords = GetChunkCoords(camera.position);
+	Vec2 lowChunkXZ(camChunkCoords.x - renderDistance, camChunkCoords.z - renderDistance);
+	Vec2 highChunkXZ(camChunkCoords.x + renderDistance, camChunkCoords.z + renderDistance);
 
-	Vec2 chunkPos(mMat.Position().x, mMat.Position().z);
+	Vec2 column;
 
 	for (float z = 0; z < CHUNK_WIDTH; z++) {
 		for (float x = 0; x < CHUNK_WIDTH; x++) {
-			for (float y = highestBlockYPerColumn[(int)x][(int)z]; y > -1; y--) {
+			column = { x, z };
+
+			for (float y = chunk->GetHighestBlockYPerColumn(column); y > -1; y--) {
 
 				// infer the block position using its coordinates
 				blockChunkPosition = { x, y, z };
 				blockWorldPosition = { x + chunkWorldPosX, y, z + chunkWorldPosZ };
 
-				blockId = (int)GetBlock(blockChunkPosition);
+				blockId = (int)GetBlock(blockWorldPosition);
 
 				// don't render air
 				if (blockId == (int)BlockType::Air) {
@@ -90,14 +82,14 @@ void World::Chunk::GenerateMesh() {
 				/////////////////////////////////////////////////////
 				// decide if we actually need to render each block //
 				/////////////////////////////////////////////////////
-				if (world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y + 1, blockWorldPosition.z }) == BlockType::Air ||
-					world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y - 1, blockWorldPosition.z }) == BlockType::Air ||
-					world.GetBlock({ blockWorldPosition.x + 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air ||
-					world.GetBlock({ blockWorldPosition.x - 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air ||
-					world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z + 1 }) == BlockType::Air ||
-					world.GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z - 1 }) == BlockType::Air) {
+				if (GetBlock({ blockWorldPosition.x, blockWorldPosition.y + 1, blockWorldPosition.z }) == BlockType::Air ||
+					GetBlock({ blockWorldPosition.x, blockWorldPosition.y - 1, blockWorldPosition.z }) == BlockType::Air ||
+					GetBlock({ blockWorldPosition.x + 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air ||
+					GetBlock({ blockWorldPosition.x - 1, blockWorldPosition.y, blockWorldPosition.z }) == BlockType::Air ||
+					GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z + 1 }) == BlockType::Air ||
+					GetBlock({ blockWorldPosition.x, blockWorldPosition.y, blockWorldPosition.z - 1 }) == BlockType::Air) {
 					
-					blockPositionLists[blockId].push_back(blockChunkPosition);
+					chunk->blockPositionLists[blockId].push_back(blockChunkPosition);
 				}
 				else {
 					y = 0; // skip to the next column
@@ -106,73 +98,12 @@ void World::Chunk::GenerateMesh() {
 		}
 	}
 
-	isLoaded = true;
+	chunk->isLoaded = true;
 }
 
-void World::Chunk::Draw() {
-	Vec3 blockWorldCoords;
-	float chunkWorldPosX = mMat.Position().x * CHUNK_WIDTH;
-	float chunkWorldPosZ = mMat.Position().z * CHUNK_WIDTH;
-	Mat4 mvMat;
-
-	std::vector<Mat4> mvMats;
-
-	// draw each type of block separately
-	for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
-		mvMats.clear();
-
-		auto& blockPositions = blockPositionLists[i];
-
-		auto& vertices = world.blockDatabase[i].vertices;
-		auto& indices = world.blockDatabase[i].indices;
-
-		for (size_t j = 0; j < blockPositions.size(); j++) {
-			blockWorldCoords = { blockPositions[j].x + chunkWorldPosX, blockPositions[j].y, blockPositions[j].z + chunkWorldPosZ };
-			
-			mvMat = world.camera.vMat * MakeTranslationMatrix({ blockWorldCoords, 1 });
-
-			mvMats.push_back(mvMat);
-		}
-
-		VertexBufferArray va;
-
-		VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
-		VertexBufferLayout layout;
-		layout.Push<float>(3, false, 0);
-		layout.Push<float>(2, true, 0);
-
-		VertexBuffer matrices(mvMats.data(), mvMats.size() * sizeof(Mat4));
-		VertexBufferLayout layoutMatrices;
-		layoutMatrices.Push<float>(4, false, 0);
-		layoutMatrices.Push<float>(4, false, 0);
-		layoutMatrices.Push<float>(4, false, 0);
-		layoutMatrices.Push<float>(4, false, 1);
-
-		va.AddBuffer(vb, layout);
-		va.AddBuffer(matrices, layoutMatrices);
-
-		IndexBuffer ib(indices.data(), indices.size());
-
-		ShaderProgram& shader = world.shaders[(int)ShaderType::Basic];
-		shader.Bind();
-
-		if (world.textures[i].isValid) {
-			world.textures[i].Bind(0);
-			shader.SetUniform1i("_texture", 0);
-		}
-		else {
-			ASSERT(false);
-		}
-
-		shader.SetUniformMatrix4fv("pMat", world.camera.pMat);
-
-		world.renderer.DrawIndexedInstanced(va, ib, shader, mvMats.size());
-	}
-}
-
-void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long& seed) {
+void World::GenerateChunkTerrain(Chunk* chunk, long long& seed) {
 	// generate the terrain image
-	auto image = terrainGenerator.GetTerrain(Vec2(mMat.Position().x, mMat.Position().z), seed, CHUNK_WIDTH, CHUNK_HEIGHT);
+	auto image = terrainGenerator.GetTerrain(Vec2(chunk->mMat.Position().x, chunk->mMat.Position().z), seed, CHUNK_WIDTH, CHUNK_HEIGHT);
 
 	// sample the image at x and z coords to get y coord
 	for (int x = 0; x < CHUNK_WIDTH; x++) {
@@ -180,19 +111,16 @@ void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long
 			int y = image->GetValue(x, z).red;
 			int r = rand() % 4;
 			if (r == 1) {
-				SetBlock(BlockType::Dirt, Vec3(x, y, z));
+				chunk->SetBlock(BlockType::Dirt, Vec3(x, y, z));
 			}
 			else {
-				SetBlock(BlockType::Grass, Vec3(x, y, z));
+				chunk->SetBlock(BlockType::Grass, Vec3(x, y, z));
 			}
-
-			highestBlockYPerColumn[x][z] = y;
 			
-
 			// set every block below the surface as well
 			y--;
 			while (y >= 0) {
-				SetBlock(BlockType::Dirt, Vec3(x, y, z));
+				chunk->SetBlock(BlockType::Dirt, Vec3(x, y, z));
 
 				y--;
 			}
@@ -210,10 +138,12 @@ void World::Chunk::GenerateTerrain(TerrainGenerator& terrainGenerator, long long
 	//	}
 	//}
 
-	hasTerrain = true;
+	chunk->hasTerrain = true;
 }
 
 void World::UpdateLoadList() {
+	std::scoped_lock lk(chunkAccessMutex);
+
 	int numOfChunksLoaded = 0;
 
 	// set bounds of how far out to render based on what chunk the player is in
@@ -236,18 +166,13 @@ void World::UpdateLoadList() {
 				continue;
 			}
 			else if (!ChunkOutsideRenderDistance(chunkPos, camChunkCoords, sqRenderDistance)) {
-				chunkAccessMutex.lock();
-
 				chunk = GetChunk(chunkPos);
-				if (!chunk->IsInitialized()) {
-					chunk->GenerateTerrain(terrainGenerator, seed);
+				if (!chunk->hasTerrain) {
+					GenerateChunkTerrain(chunk, seed);
 				}
-
-				chunkAccessMutex.unlock();
 
 				// add the chunk to the visible list because it is potentially visible
 				visibleChunksList.push_back(chunkPos);
-				
 			}
 		}
 	}
@@ -269,6 +194,8 @@ void World::UpdateVisibleList() {
 }
 
 void World::UpdateRenderableList() {
+	std::scoped_lock lk(chunkAccessMutex);
+
 	Vec2 camChunkCoords = GetChunkCoords(camera.position);
 	float sqRenderDistance = renderDistance * renderDistance;
 
@@ -284,13 +211,11 @@ void World::UpdateRenderableList() {
 #else
 		if (!ChunkOutsideRenderDistance(renderableChunksList[i], camChunkCoords, sqRenderDistance)) {
 #endif
-			chunkAccessMutex.lock();
 			chunk = GetChunk(renderableChunksList[i]);
-			if (!chunk->IsLoaded()) {
-				chunk->GenerateMesh();
+			if (!chunk->isLoaded) {
+				GenerateChunkMesh(chunk);
 				numChunksLoaded++;
 			}
-			chunkAccessMutex.unlock();
 		}
 		else {
 			// add the chunk to the unload list because its out of render distance
@@ -307,6 +232,8 @@ void World::UpdateRenderableList() {
 }
 
 void World::UpdateUnloadList() {
+	std::scoped_lock lk(chunkAccessMutex);
+
 	// for each chunk in the unload list
 	for (int i = 0; i < chunkUnloadList.size(); i++) {
 		// TODO: save chunk to file eventually
@@ -341,17 +268,15 @@ bool World::ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChun
 }
 
 bool World::GetStop() {
-	stopMutex.lock();
+	std::scoped_lock lk(stopMutex);
 	bool result = stop;
-	stopMutex.unlock();
 
 	return result;
 }
 
 void World::SetStop(bool value) {
-	stopMutex.lock();
+	std::scoped_lock lk(stopMutex);
 	stop = value;
-	stopMutex.unlock();
 }
 
 World::World(Camera& camera, Renderer& renderer)
@@ -410,26 +335,93 @@ void World::Update() {
 }
 
 void World::Draw() {
-	chunkAccessMutex.lock();
+	std::scoped_lock lk(chunkAccessMutex);
+
 	for (size_t i = 0; i < renderableChunksList.size(); i++) {
-		GetChunk(renderableChunksList[i])->Draw();
+		Chunk* chunk = GetChunk(renderableChunksList[i]);
+
+		Vec3 blockWorldCoords;
+		float chunkWorldPosX = chunk->mMat.Position().x * CHUNK_WIDTH;
+		float chunkWorldPosZ = chunk->mMat.Position().z * CHUNK_WIDTH;
+		Mat4 mvMat;
+
+		std::vector<Mat4> mvMats;
+
+		// draw each type of block separately
+		for (size_t i = 1; i < (int)BlockType::NUM_TYPES; i++) {
+			mvMats.clear();
+
+			auto& blockPositions = chunk->blockPositionLists[i];
+
+			auto& vertices = blockDatabase[i].vertices;
+			auto& indices = blockDatabase[i].indices;
+
+			for (size_t j = 0; j < blockPositions.size(); j++) {
+				blockWorldCoords = { blockPositions[j].x + chunkWorldPosX, blockPositions[j].y, blockPositions[j].z + chunkWorldPosZ };
+
+				mvMat = camera.vMat * MakeTranslationMatrix({ blockWorldCoords, 1 });
+
+				mvMats.push_back(mvMat);
+			}
+
+			VertexBufferArray va;
+
+			VertexBuffer vb(vertices.data(), vertices.size() * sizeof(Vertex));
+			VertexBufferLayout layout;
+			layout.Push<float>(3, false, 0);
+			layout.Push<float>(2, true, 0);
+
+			VertexBuffer matrices(mvMats.data(), mvMats.size() * sizeof(Mat4));
+			VertexBufferLayout layoutMatrices;
+			layoutMatrices.Push<float>(4, false, 1);
+			layoutMatrices.Push<float>(4, false, 1);
+			layoutMatrices.Push<float>(4, false, 1);
+			layoutMatrices.Push<float>(4, false, 1); // divisor of 1 because this stuff changes per instance
+
+			va.AddBuffer(vb, layout);
+			va.AddBuffer(matrices, layoutMatrices);
+
+			IndexBuffer ib(indices.data(), indices.size());
+
+			ShaderProgram& shader = shaders[(int)ShaderType::Basic];
+			shader.Bind();
+
+			if (textures[i].isValid) {
+				textures[i].Bind(0);
+				shader.SetUniform1i("_texture", 0);
+			}
+			else {
+				ASSERT(false);
+			}
+
+			shader.SetUniformMatrix4fv("pMat", camera.pMat);
+
+			renderer.DrawIndexedInstanced(va, ib, shader, mvMats.size());
+		}
 	}
-	chunkAccessMutex.unlock();
 
 	skybox.Draw(renderer, camera);
 }
 
 const BlockType& World::GetBlock(const Vec3& worldCoords) {
+	if (worldCoords.y >= CHUNK_HEIGHT || worldCoords.y < 0) {
+		return BlockType::Dirt;
+	}
+
 	auto blockPosition = GetBlockCoords(worldCoords);
 	auto chunkPosition = GetChunkCoords(worldCoords);
 
 	Chunk* chunk = GetChunk(chunkPosition);
-	if (!chunk->IsInitialized()) { chunk->GenerateTerrain(terrainGenerator, seed); }
+	if (!chunk->hasTerrain) { GenerateChunkTerrain(chunk, seed); }
 
 	return chunk->GetBlock(blockPosition);
 }
 
 void World::SetBlock(const BlockType& id, const Vec3& worldCoords) {
+	if (worldCoords.y >= CHUNK_HEIGHT || worldCoords.y < 0) {
+		return;
+	}
+
 	auto blockPosition = GetBlockCoords(worldCoords);
 	auto chunkPosition = GetChunkCoords(worldCoords);
 	GetChunk(chunkPosition)->SetBlock(id, blockPosition);
@@ -437,8 +429,7 @@ void World::SetBlock(const BlockType& id, const Vec3& worldCoords) {
 
 World::Chunk* World::GetChunk(const Vec2& chunkPos) {
 	if (chunkMap.find(chunkPos) == chunkMap.end()) {
-		Chunk chunk(chunkPos, *this);
-		chunkMap.emplace(chunkPos, std::move(chunk));
+		chunkMap.emplace(chunkPos, std::move(Chunk(chunkPos)));
 	}
 
 	// operator[] requires the element to have a default constructor

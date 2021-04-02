@@ -48,30 +48,21 @@ private:
 
 	// class Chunk {
 	private:
-		World& world;
 		Layer layers[CHUNK_HEIGHT];
-		int highestBlockYPerColumn[CHUNK_WIDTH][CHUNK_WIDTH];
-		Mat4 mMat;
+		std::array<std::array<int, CHUNK_WIDTH>, CHUNK_WIDTH> highestBlockYPerColumn;
 
-		// initialize an array of vectors. one vector for each block type.
+	public:
+		Mat4 mMat;
 		std::vector<Vec3> blockPositionLists[(int)BlockType::NUM_TYPES];
-		
 		bool hasTerrain = false;
 		bool isLoaded = false;
 
-	public:
-		Chunk(const Vec2& position, World& world);
+		Chunk(const Vec2& position);
 		~Chunk();
 
-		const bool IsBlockOutOfBounds(const Vec3& blockPos) const;
 		const BlockType& GetBlock(const Vec3& blockPos) const;
 		void SetBlock(const BlockType& id, const Vec3& blockPos);
-		void Draw();
-		void GenerateMesh();
-		void GenerateTerrain(TerrainGenerator& terrainGenerator, long long& seed);
-
-		inline bool IsInitialized() { return hasTerrain; }
-		inline bool IsLoaded() { return isLoaded; }
+		int GetHighestBlockYPerColumn(class Vec2& column);
 	};
 
 
@@ -101,7 +92,7 @@ private:
 	Camera& camera;
 	Renderer& renderer;
 	unsigned int renderDistance = 3;
-	long long seed = -1;
+	long long seed = 1;
 	int numChunksPerFrame = 3;
 
 	TerrainGenerator terrainGenerator;
@@ -121,6 +112,8 @@ private:
 	bool ChunkAlreadyExistsIn(const std::vector<Vec2>& v, const Vec2& elem) const;
 	bool ChunkOutsideRenderDistance(const Vec2& chunkPos, const Vec2& camChunkCoords, float sqRenderDistance) const ;
 
+	void GenerateChunkTerrain(Chunk* chunk, long long& seed);
+
 	bool GetStop();
 	void SetStop(bool value);
 
@@ -133,6 +126,7 @@ public:
 	const BlockType& GetBlock(const Vec3& worldCoords);
 	void SetBlock(const BlockType& id, const Vec3& worldCoords);
 	Chunk* GetChunk(const Vec2& chunkPos);
+	void GenerateChunkMesh(Chunk* chunk);
 
 	inline const BlockData& GetBlockDataFor(BlockType id) const { return blockDatabase[(unsigned int)id]; };
 

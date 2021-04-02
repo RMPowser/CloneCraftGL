@@ -50,17 +50,17 @@ void Player::Update(float dt) {
 	if (window.GetKey(G_BUTTON_LEFT) && canPlaceBlock) {
 
 		for (Ray ray(camera.position, camera.rotation); ray.GetLength() <= buildRange; ray.Step(0.001f)) {
-			Vec3 rayEnd = ray.GetEnd();
+			const Vec3& rayEnd = ray.GetEnd();
 			BlockType block = world.GetBlock(rayEnd);
 
 			if (block != BlockType::Air) {
 				world.SetBlock(BlockType::Air, rayEnd);
 				Vec2 xz = World::GetChunkCoords(rayEnd);
-				world.GetChunk(xz)->GenerateMesh();
-				world.GetChunk(Vec2(xz.x + 1, xz.z))->GenerateMesh();
-				world.GetChunk(Vec2(xz.x - 1, xz.z))->GenerateMesh();
-				world.GetChunk(Vec2(xz.x, xz.z + 1))->GenerateMesh();
-				world.GetChunk(Vec2(xz.x, xz.z - 1))->GenerateMesh();
+				world.GenerateChunkMesh(world.GetChunk(xz));
+				world.GenerateChunkMesh(world.GetChunk({ xz.x + 1, xz.z }));
+				world.GenerateChunkMesh(world.GetChunk({ xz.x - 1, xz.z }));
+				world.GenerateChunkMesh(world.GetChunk({ xz.x, xz.z + 1 }));
+				world.GenerateChunkMesh(world.GetChunk({ xz.x, xz.z - 1 }));
 				break;
 			}
 		}
@@ -77,7 +77,7 @@ void Player::Update(float dt) {
 		Vec3 lastRayPosition { 0, 0, 0 };
 
 		for (Ray ray(camera.position, camera.rotation); ray.GetLength() <= buildRange; ray.Step(0.001f)) {
-			Vec3 rayEnd = ray.GetEnd();
+			const Vec3& rayEnd = ray.GetEnd();
 			BlockType block = world.GetBlock(rayEnd);
 			Vec3 blockPosition = lastRayPosition;
 
@@ -85,7 +85,7 @@ void Player::Update(float dt) {
 				if (!WouldCollide(blockPosition)) {
 					world.SetBlock(BlockType::Grass, lastRayPosition);
 					Vec2 xz = World::GetChunkCoords(lastRayPosition);
-					world.GetChunk(xz)->GenerateMesh();
+					world.GenerateChunkMesh(world.GetChunk(xz));
 					break;
 				}
 			}
